@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TinniTune — Tinnitus Sound Studio</title>
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../design-system/styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body { margin: 0; background: var(--surface-page-outer); color: var(--text-primary); font-family: var(--font-display); }
+  * { box-sizing: border-box; }
+  .cap { font-family: var(--font-mono); font-weight: 700; font-size: 10px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+  .panel { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); box-shadow: var(--elev-card); }
+  .well { background: var(--surface-well); box-shadow: var(--material-inset); border-radius: var(--radius-md); }
+
+  /* ── Responsive shell: mobile-first single column → desktop workspace ── */
+  .shell { max-width: 1320px; margin: 0 auto; padding: 16px; padding-bottom: 120px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 760px)  { .shell { padding: 24px; } .grid { grid-template-columns: 1fr 1fr; } .col-wide { grid-column: 1 / -1; } }
+  @media (min-width: 1080px) { .grid { grid-template-columns: 320px minmax(0,1fr) 300px; }
+                               .col-wide { grid-column: auto; } .col-span2 { grid-column: span 2; } }
+
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .pad { padding: 18px; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font-weight: 500; font-size: 20px; letter-spacing: 0.04em; margin: 0; }
+
+  .chip { font-family: var(--font-display); font-weight: 600; font-size: 13px; height: 38px; padding: 0 16px; border: none; border-radius: var(--radius-md);
+          background: var(--surface-control); color: var(--text-secondary); box-shadow: inset 0 0 0 1px var(--border-hairline); cursor: pointer; transition: var(--transition-control); }
+  .chip[aria-pressed="true"] { background: rgba(214,164,49,0.14); color: var(--color-gold-300); box-shadow: inset 0 0 0 1px rgba(214,164,49,0.5); }
+
+  /* sticky mobile transport */
+  .transport { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+               background: linear-gradient(180deg, rgba(8,8,11,0.4), var(--surface-page) 40%); backdrop-filter: blur(10px); border-top: 1px solid var(--border-hairline); }
+  .transport .inner { max-width: 1320px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+  .playbtn { flex: none; width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; display: grid; place-items: center;
+             background: radial-gradient(circle at 38% 30%, var(--color-gold-400), var(--color-gold-600)); color: var(--text-on-gold); box-shadow: var(--glow-gold), inset 0 1px 0 rgba(255,255,255,0.3); font-size: 20px; }
+  .playbtn.off { background: radial-gradient(circle at 38% 30%, var(--color-obsidian-600), var(--color-obsidian-800)); color: var(--color-obsidian-050); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 3px 8px rgba(0,0,0,0.55); }
+
+  input[type=range].masterline { -webkit-appearance:none; appearance:none; height:6px; border-radius:999px; background:var(--surface-well); box-shadow:inset 0 1px 3px rgba(0,0,0,0.8); flex:1; accent-color: var(--color-gold-500); }
+  input[type=range].masterline::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--color-obsidian-200), var(--color-obsidian-700)); box-shadow:0 2px 6px rgba(0,0,0,0.6), var(--glow-gold); cursor:pointer; }
+
+  .disclaimer { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  canvas { display: block; width: 100%; }
+</style>
+</head>
+<body>
+<div id="root">
+  <div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+    <div class="cap">Loading studio…</div>
+  </div>
+</div>
+
+<script type="text/plain" id="peace-app">
+const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+const COLORS = [
+  { id: 'white', label: 'White', note: 'bright, full' },
+  { id: 'pink',  label: 'Pink',  note: 'warm, balanced' },
+  { id: 'brown', label: 'Brown', note: 'deep, rumbly' },
+];
+
+const PRESETS = [
+  { name: 'Pink calm',     color: 'pink',  gain: 60, notchOn: false, master: 35, tone: 'Gentle all-rounder for focus or sleep' },
+  { name: 'Brown deep',    color: 'brown', gain: 55, notchOn: false, master: 35, tone: 'Low, soothing rumble' },
+  { name: 'White bright',  color: 'white', gain: 50, notchOn: false, master: 32, tone: 'Full-spectrum masking' },
+  { name: 'Notched (demo)',color: 'pink',  gain: 68, notchOn: true,  master: 38, notchHz: 4000, tone: 'Pink noise with a notch at your pitch' },
+];
+
+// ─────────── Live spectrum visualiser (custom, AURUM-styled) ───────────
+function Spectrum({ engineRef, playing, notchOn, notchHz }) {
+  const wrap = useRef(null), cv = useRef(null);
+  useEffect(() => {
+    let raf;
+    const BANDS = 104, FMIN = 30, FMAX = 16000;
+    const draw = () => {
+      const c = cv.current, w = wrap.current;
+      if (c && w) {
+        const W = w.clientWidth, H = 200, dpr = window.devicePixelRatio || 1;
+        if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; c.style.height = H + 'px'; }
+        const ctx = c.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        const eng = engineRef.current;
+        const data = eng ? eng.getFrequencyData() : new Uint8Array(0);
+        const binHz = eng ? eng.binHz : 1;
+        const xOf = (f) => (Math.log(f / FMIN) / Math.log(FMAX / FMIN)) * W;
+        // bars (log-spaced)
+        for (let i = 0; i < BANDS; i++) {
+          const f0 = FMIN * Math.pow(FMAX / FMIN, i / BANDS);
+          const f1 = FMIN * Math.pow(FMAX / FMIN, (i + 1) / BANDS);
+          let lo = Math.max(1, Math.floor(f0 / binHz)), hi = Math.max(lo, Math.floor(f1 / binHz));
+          let v = 0; for (let b = lo; b <= hi && b < data.length; b++) v = Math.max(v, data[b]);
+          const mag = v / 255;
+          const x = xOf(f0), bw = Math.max(1, xOf(f1) - x - 1);
+          const bh = Math.max(1, mag * (H - 8));
+          const g = ctx.createLinearGradient(0, H, 0, H - bh);
+          g.addColorStop(0, 'rgba(214,164,49,0.35)'); g.addColorStop(1, '#F2D484');
+          ctx.fillStyle = playing ? g : 'rgba(118,118,130,0.18)';
+          ctx.fillRect(x, H - bh, bw, bh);
+        }
+        // octave gridlines + labels
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        [100, 1000, 10000].forEach(f => { ctx.fillRect(xOf(f), 0, 1, H); });
+        ctx.fillStyle = 'rgba(157,157,168,0.7)'; ctx.font = '9px "Space Mono", monospace';
+        [['100', 100], ['1k', 1000], ['10k', 10000]].forEach(([t, f]) => ctx.fillText(t, xOf(f) + 4, H - 4));
+        // notch marker
+        if (notchOn) {
+          const x = xOf(notchHz);
+          ctx.fillStyle = '#46AEDC'; ctx.fillRect(x - 1, 0, 2, H);
+          ctx.fillStyle = '#A6E0F7'; ctx.font = 'bold 9px "Space Mono", monospace';
+          ctx.fillText('NOTCH ' + Math.round(notchHz) + 'Hz', Math.min(W - 90, x + 5), 12);
+        }
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, [playing, notchOn, notchHz]);
+  return (
+    <div ref={wrap} className="well" style={{ padding: 8, overflow: 'hidden' }}>
+      <canvas ref={cv} />
+    </div>
+  );
+}
+
+function App() {
+  const engineRef = useRef(null);
+  const timerRef = useRef(null);
+  const [color, setColor] = useState('pink');
+  const [gain, setGain] = useState(60);          // layer gain 0..100
+  const [notchOn, setNotchOn] = useState(false);
+  const [notchHz, setNotchHz] = useState(4000);  // 200..12000
+  const [notchOct, setNotchOct] = useState(100); // 50..200 → 0.5..2.0 octaves
+  const [master, setMaster] = useState(35);
+  const [playing, setPlaying] = useState(false);
+  const [level, setLevel] = useState(0);
+  const [timerMin, setTimerMin] = useState(0);
+  const [rendering, setRendering] = useState(false);
+  const store = useMemo(() => PeaceProfiles.createProfileStore(), []);
+  const [saved, setSaved] = useState(() => store.list());
+  const [saveName, setSaveName] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const ceiling = PeaceAudio.MASTER_GAIN_CEILING;
+
+  const profile = useCallback(() => ({
+    version: 1, tinnitus: {},
+    layers: [{ type: 'noise', color, gain: gain / 100,
+      notch: { enabled: notchOn, centerHz: notchHz, octaves: notchOct / 100 } }],
+    master: { gain: master / 100 }, timer: { minutes: timerMin, fadeOutSec: 30 },
+  }), [color, gain, notchOn, notchHz, notchOct, master, timerMin]);
+
+  useEffect(() => { engineRef.current = new PeaceAudio.AudioEngine(); return () => engineRef.current?.dispose(); }, []);
+
+  // Apply a full profile object to the UI state (used by handoff, share-link, and load).
+  const applyProfile = (p) => {
+    const l = p?.layers?.[0]; if (!l) return;
+    if (l.color) setColor(l.color);
+    if (Number.isFinite(l.gain)) setGain(Math.round(l.gain * 100));
+    if (l.notch) { setNotchOn(!!l.notch.enabled); if (l.notch.centerHz) setNotchHz(Math.round(l.notch.centerHz)); if (l.notch.octaves) setNotchOct(Math.round(l.notch.octaves * 100)); }
+    if (Number.isFinite(p.master?.gain)) setMaster(Math.round(p.master.gain * 100));
+  };
+
+  // On mount: a shared #p= link wins, else a one-shot handoff from "Identify".
+  useEffect(() => {
+    const shared = PeaceProfiles.parseShareHash(window.location.hash);
+    if (shared) { applyProfile(shared); history.replaceState(null, '', window.location.pathname); return; }
+    try {
+      const raw = localStorage.getItem('peace.incomingProfile');
+      if (!raw) return;
+      localStorage.removeItem('peace.incomingProfile');
+      applyProfile(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  // VU meter poll (~20 Hz, cheap)
+  useEffect(() => {
+    const id = setInterval(() => setLevel(engineRef.current ? engineRef.current.getLevel() : 0), 50);
+    return () => clearInterval(id);
+  }, []);
+
+  const armTimer = () => {
+    clearTimeout(timerRef.current);
+    if (timerMin > 0) {
+      const fade = 30;
+      timerRef.current = setTimeout(() => {
+        engineRef.current?.setMasterGain(0);
+        setTimeout(() => stop(), fade * 1000);
+      }, Math.max(1, timerMin * 60 - fade) * 1000);
+    }
+  };
+
+  const play = async () => { await engineRef.current.play(profile()); setPlaying(true); armTimer(); };
+  const stop = () => { engineRef.current?.stop(); setPlaying(false); clearTimeout(timerRef.current); };
+  const toggle = () => (playing ? stop() : play());
+
+  // structural changes → rebuild graph while playing
+  useEffect(() => { if (playing) engineRef.current.play(profile()); /* eslint-disable-next-line */ }, [color, notchOn]);
+
+  // live changes
+  const onMaster = (v) => { setMaster(v); engineRef.current?.setMasterGain(v / 100); };
+  const onGain = (v) => { setGain(v); engineRef.current?.setLayerGain(0, v / 100); };
+  const onNotchHz = (v) => { setNotchHz(v); engineRef.current?.setNotch(0, { centerHz: v }); };
+  const onNotchOct = (v) => { setNotchOct(v); engineRef.current?.setNotch(0, { octaves: v / 100 }); };
+
+  const applyPreset = (p) => {
+    setColor(p.color); setGain(p.gain); setNotchOn(p.notchOn); setMaster(p.master);
+    if (p.notchHz) setNotchHz(p.notchHz);
+    setTimeout(() => { if (engineRef.current?.playing) engineRef.current.play({
+      version:1, tinnitus:{}, layers:[{type:'noise', color:p.color, gain:p.gain/100,
+        notch:{enabled:p.notchOn, centerHz:p.notchHz||notchHz, octaves:notchOct/100}}],
+      master:{gain:p.master/100}, timer:{minutes:timerMin,fadeOutSec:30} }); }, 0);
+  };
+
+  const exportWav = async (seconds) => {
+    setRendering(true);
+    try {
+      const blob = await PeaceAudio.renderProfileToWav(profile(), { seconds });
+      PeaceAudio.downloadBlob(blob, `tinnitune-${color}${notchOn ? '-notch' + Math.round(notchHz) : ''}-${seconds}s.wav`);
+    } finally { setRendering(false); }
+  };
+
+  // ── My Sounds (saved profiles) + share ──
+  const saveCurrent = () => {
+    const name = saveName.trim() || `${color}${notchOn ? ' · notch ' + Math.round(notchHz) + 'Hz' : ''}`;
+    store.save(name, profile(), Date.now());
+    setSaved(store.list()); setSaveName('');
+  };
+  const loadSaved = (p) => { applyProfile(p); if (engineRef.current?.playing) engineRef.current.play(p); };
+  const removeSaved = (name) => { store.remove(name); setSaved(store.list()); };
+  const shareLink = async () => {
+    const url = PeaceProfiles.buildShareUrl(window.location.href, profile());
+    try { await navigator.clipboard.writeText(url); } catch {}
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
+  };
+
+  const highPitchWarn = notchOn && notchHz > 8000;
+
+  return (
+    <div className="shell">
+      {/* header */}
+      <div className="between" style={{ marginBottom: 16 }}>
+        <div className="row">
+          <img src="../design-system/assets/aurum-mark.svg" width="30" height="30" alt="" />
+          <div>
+            <h1>TinniTune</h1>
+            <div className="cap" style={{ marginTop: 2 }}>Tinnitus Sound Studio</div>
+          </div>
+        </div>
+        <Badge tone={playing ? 'success' : 'neutral'} dot={playing}>{playing ? 'Playing' : 'Idle'}</Badge>
+      </div>
+
+      <div className="grid">
+        {/* ── Column 1: source + level ── */}
+        <div className="panel pad stack">
+          <div className="cap">Sound source</div>
+          <div className="seg">
+            {COLORS.map(c => (
+              <button key={c.id} className="chip" aria-pressed={color === c.id} onClick={() => setColor(c.id)}
+                style={{ flexDirection: 'column', height: 56, gap: 2, paddingTop: 6 }}>
+                <span>{c.label}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, opacity: 0.7 }}>{c.note}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="between" style={{ marginTop: 4 }}>
+            <span className="cap">Layer level</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>{gain}</span>
+          </div>
+          <div className="row" style={{ justifyContent: 'center' }}>
+            <Fader value={gain} onChange={onGain} height={150} ticks={9} />
+            <VUMeter level={level} peak={0.92} length={150} thickness={10} />
+          </div>
+        </div>
+
+        {/* ── Column 2 (center, wide): spectrum + tuning ── */}
+        <div className="stack col-span2">
+          <div className="panel pad stack">
+            <div className="between">
+              <span className="cap">Live spectrum</span>
+              {highPitchWarn && <Badge tone="live">notch &gt; 8 kHz — see note</Badge>}
+            </div>
+            <Spectrum engineRef={engineRef} playing={playing} notchOn={notchOn} notchHz={notchHz} />
+          </div>
+
+          <div className="panel pad stack">
+            <div className="between">
+              <span className="cap">Notch — centre on your tinnitus pitch</span>
+              <Toggle checked={notchOn} onChange={setNotchOn} />
+            </div>
+            <div className="row" style={{ opacity: notchOn ? 1 : 0.4, pointerEvents: notchOn ? 'auto' : 'none', justifyContent: 'space-around' }}>
+              <Knob value={notchHz} min={200} max={12000} onChange={onNotchHz} label="Centre" unit=" Hz" accent="ice" size={68} />
+              <Knob value={notchOct} min={50} max={200} onChange={onNotchOct} label="Width" unit="" accent="ice" size={68} />
+              <div style={{ maxWidth: 230 }} className="disclaimer">
+                Notched sound removes a band around your pitch. Best evidence for tinnitus <strong>≤ 8&nbsp;kHz</strong>;
+                width ½–1 octave (≈{(notchOct/100).toFixed(2)} oct).
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Column 3: my sounds + presets + timer + export ── */}
+        <div className="stack">
+          <div className="panel pad stack">
+            <div className="cap">My sounds</div>
+            <div className="row" style={{ gap: 8 }}>
+              <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this sound"
+                style={{ flex: 1, minWidth: 0, height: 38, padding: '0 12px', borderRadius: 'var(--radius-md)', border: 'none',
+                  background: 'var(--surface-well)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.7)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontSize: 13 }} />
+              <Button size="sm" onClick={saveCurrent}>Save</Button>
+            </div>
+            {saved.length === 0 && <div className="disclaimer">Saved sounds stay on this device.</div>}
+            {saved.map(e => (
+              <div key={e.name} className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+                <button className="chip" style={{ flex: 1, minWidth: 0 }} onClick={() => loadSaved(e.profile)}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{e.name}</span>
+                </button>
+                <button className="chip" onClick={() => removeSaved(e.name)} aria-label={'Delete ' + e.name} style={{ width: 40, padding: 0, textAlign: 'center', flex: 'none' }}>×</button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={shareLink}>{copied ? '✓ Link copied' : '⤴ Copy share link'}</Button>
+          </div>
+
+          <div className="panel pad stack">
+            <div className="cap">Presets</div>
+            {PRESETS.map(p => (
+              <button key={p.name} className="chip" style={{ height: 'auto', padding: '10px 14px', textAlign: 'left', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }} onClick={() => applyPreset(p)}>
+                <span style={{ fontWeight: 600 }}>{p.name}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.7, whiteSpace: 'normal' }}>{p.tone}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="panel pad stack">
+            <div className="cap">Sleep timer</div>
+            <div className="seg" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+              {[0, 15, 30, 45, 60, 120].map(m => (
+                <button key={m} className="chip" aria-pressed={timerMin === m} onClick={() => setTimerMin(m)}>{m === 0 ? 'Off' : m + 'm'}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel pad stack">
+            <div className="cap">Download loop (WAV)</div>
+            <div className="seg">
+              {[10, 30, 60].map(s => (
+                <Button key={s} variant="outline" size="sm" disabled={rendering} onClick={() => exportWav(s)}>{rendering ? '…' : s + 's'}</Button>
+              ))}
+            </div>
+            <div className="disclaimer">Seamless, gapless loop — play it on repeat in any player.</div>
+          </div>
+        </div>
+
+        {/* ── Safety note (full width) ── */}
+        <div className="panel pad col-wide" style={{ gridColumn: '1 / -1' }}>
+          <div className="disclaimer">
+            <strong style={{ color: 'var(--text-secondary)' }}>Keep it soft.</strong> Aim for the “mixing point” — a level where the sound just
+            <em> blends with</em> your tinnitus rather than drowning it out. Output is capped at {Math.round(ceiling * 100)}% and opens quiet.
+            Follow safe-listening guidance (≈60% device volume, a break each hour). This tool offers relief and self-management — it is
+            <strong> not a medical device</strong> and not a substitute for an audiologist or doctor.
+          </div>
+        </div>
+      </div>
+
+      {/* sticky transport */}
+      <div className="transport">
+        <div className="inner">
+          <button className={'playbtn' + (playing ? '' : ' off')} onClick={toggle} aria-label={playing ? 'Stop' : 'Play'}>
+            {playing ? '■' : '▶'}
+          </button>
+          <span className="cap" style={{ width: 54 }}>Master</span>
+          <input className="masterline" type="range" min="0" max={Math.round(ceiling * 100)} value={master} onChange={(e) => onMaster(+e.target.value)} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--color-gold-300)', width: 38, textAlign: 'right' }}>{(master / 100).toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<script type="module">
+import { AudioEngine } from '../src/audio/engine.js';
+import { DEFAULT_PROFILE, MASTER_GAIN_CEILING, octavesToQ } from '../src/audio/profile.js';
+import { renderProfileToWav, downloadBlob } from '../src/audio/export.js';
+import { createProfileStore } from '../src/profile/store.js';
+import { encodeProfile, buildShareUrl, parseShareHash } from '../src/profile/share.js';
+
+const root = document.getElementById('root');
+try {
+  window.PeaceAudio = { AudioEngine, DEFAULT_PROFILE, MASTER_GAIN_CEILING, octavesToQ, renderProfileToWav, downloadBlob };
+  window.PeaceProfiles = { createProfileStore, encodeProfile, buildShareUrl, parseShareHash };
+
+  // Load AURUM components via the design-system's runtime-Babel pattern.
+  const COMPONENTS = ['core/Button', 'core/Toggle', 'core/Badge', 'dj/Knob', 'dj/Fader', 'dj/VUMeter'];
+  const NS = {};
+  for (const c of COMPONENTS) {
+    let src = await (await fetch(`../design-system/components/${c}.jsx`)).text();
+    src = src.replace(/import\s+React\s+from\s+['"]react['"];?/g, '')
+             .replace(/export\s+function\s+(\w+)/g, 'NS.$1 = function $1');
+    new Function('React', 'NS', Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code)(window.React, NS);
+  }
+
+  const appSrc = document.getElementById('peace-app').textContent;
+  const code = Babel.transform(appSrc, { presets: [['react', { runtime: 'classic' }]] }).code;
+  new Function('React', 'ReactDOM', 'Knob', 'Fader', 'Toggle', 'Button', 'Badge', 'VUMeter', 'PeaceAudio', 'PeaceProfiles', code)(
+    window.React, window.ReactDOM, NS.Knob, NS.Fader, NS.Toggle, NS.Button, NS.Badge, NS.VUMeter, window.PeaceAudio, window.PeaceProfiles,
+  );
+} catch (e) {
+  root.textContent = 'Error: ' + e.message;
+  console.error(e);
+}
+</script>
+</body>
+</html>

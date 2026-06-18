@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Identify Your Tinnitus — TinniTune</title>
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="stylesheet" href="../design-system/styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body { margin: 0; background: var(--surface-page-outer); color: var(--text-primary); font-family: var(--font-display); }
+  * { box-sizing: border-box; }
+  .cap { font-family: var(--font-mono); font-weight: 700; font-size: 10px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+  .panel { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); box-shadow: var(--elev-card); }
+  .well { background: var(--surface-well); box-shadow: var(--material-inset); border-radius: var(--radius-md); }
+  .shell { max-width: 1180px; margin: 0 auto; padding: 16px 16px 60px; }
+  .cols { display: grid; gap: 16px; grid-template-columns: 1fr; align-items: start; }
+  @media (min-width: 940px) { .shell { padding: 28px; } .cols { grid-template-columns: minmax(0,1fr) 360px; }
+                              .results { position: sticky; top: 20px; } }
+  .pad { padding: 18px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font-weight: 500; font-size: 22px; letter-spacing: 0.03em; margin: 0; }
+  h2 { font-weight: 600; font-size: 15px; margin: 0 0 2px; }
+  .sub { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+  .chip { font-family: var(--font-display); font-weight: 600; font-size: 13px; min-height: 40px; padding: 8px 14px; border: none; border-radius: var(--radius-md);
+          background: var(--surface-control); color: var(--text-secondary); box-shadow: inset 0 0 0 1px var(--border-hairline); cursor: pointer; transition: var(--transition-control); text-align: left; }
+  .chip[aria-pressed="true"] { background: rgba(214,164,49,0.14); color: var(--color-gold-300); box-shadow: inset 0 0 0 1px rgba(214,164,49,0.5); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .freqval { font-family: var(--font-mono); font-weight: 700; font-size: 34px; color: var(--color-gold-300); line-height: 1; }
+  input[type=range].slider { -webkit-appearance:none; appearance:none; width:100%; height:8px; border-radius:999px; background:var(--surface-well); box-shadow:inset 0 1px 3px rgba(0,0,0,0.8); accent-color: var(--color-gold-500); }
+  input[type=range].slider::-webkit-slider-thumb { -webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--color-obsidian-200), var(--color-obsidian-700)); box-shadow:0 2px 6px rgba(0,0,0,0.6), var(--glow-gold); cursor:pointer; }
+  .flag { border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .flag .t { font-weight: 600; font-size: 13.5px; }
+  .flag .m { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+  .flag .a { font-family: var(--font-mono); font-size: 11px; margin-top: 2px; }
+  .toplink { color: var(--color-gold-300); text-decoration: none; font-size: 13px; }
+  .disclaimer { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+</style>
+</head>
+<body>
+<div id="root"><div style="position:fixed;inset:0;display:grid;place-items:center"><div class="cap">Loading…</div></div></div>
+
+<script type="text/plain" id="peace-app">
+const { useState, useRef, useEffect, useMemo } = React;
+
+const FMIN = 100, FMAX = 14000;
+const sliderToHz = (t) => Math.round(FMIN * Math.pow(FMAX / FMIN, t / 1000));
+const hzToSlider = (hz) => Math.round(1000 * Math.log(hz / FMIN) / Math.log(FMAX / FMIN));
+
+const CHARACTERS = [
+  { id: 'tonal',    label: 'Ringing / whistling', desc: 'A clear, steady tone', preview: 'tone' },
+  { id: 'hissing',  label: 'Hissing / “shhh”',    desc: 'Steady, broadband, like static', preview: 'hissing' },
+  { id: 'buzzing',  label: 'Buzzing / humming',   desc: 'Low and rough', preview: 'buzzing' },
+  { id: 'roaring',  label: 'Roaring / ocean',     desc: 'Low, fluctuating', preview: 'roaring' },
+  { id: 'cricket',  label: 'Cricket / electric',  desc: 'Very high-pitched', preview: 'tone' },
+  { id: 'clicking', label: 'Clicking (rhythmic)', desc: 'Regular clicks — not your heartbeat', preview: null },
+  { id: 'pulsatile',label: 'Whooshing (heartbeat)', desc: 'Pulses in time with your pulse', preview: null },
+];
+const LATERALITY = [['left','Left ear'],['right','Right ear'],['both','Both ears'],['inHead','In my head']];
+const TIMING = [['constant','Constant'],['pulsatile','Pulses w/ heartbeat'],['rhythmic','Rhythmic clicks']];
+const ONSET = [['gradual','Came on gradually'],['sudden','Came on suddenly']];
+const SYMPTOMS = [
+  ['hearingLoss','New hearing loss'], ['vertigo','Vertigo / spinning'], ['fullness','Ear fullness'],
+  ['earPainOrDischarge','Ear pain or discharge'], ['fever','Fever'], ['blockedMuffled','Blocked / muffled'],
+  ['neuro','Weakness, facial droop, severe headache'],
+];
+
+const SEV = {
+  emergency:   { bg: 'rgba(255,82,71,0.16)',  bd: 'rgba(255,82,71,0.5)',  fg: '#FF8A80', tag: 'Emergency' },
+  urgent:      { bg: 'rgba(255,138,61,0.15)', bd: 'rgba(255,138,61,0.5)', fg: '#FFB877', tag: 'Urgent' },
+  'see-clinician': { bg: 'rgba(214,164,49,0.13)', bd: 'rgba(214,164,49,0.45)', fg: 'var(--color-gold-300)', tag: 'See a clinician' },
+  info:        { bg: 'var(--surface-control)', bd: 'var(--border-hairline)', fg: 'var(--text-secondary)', tag: 'Good to know' },
+};
+
+// ── Isolated pure-tone player for pitch matching (own AudioContext) ──
+function useTone() {
+  const ref = useRef({ ctx: null, osc: null, gain: null });
+  const start = (hz) => {
+    const s = ref.current;
+    if (!s.ctx) s.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (s.osc) return;
+    s.osc = s.ctx.createOscillator(); s.osc.type = 'sine'; s.osc.frequency.value = hz;
+    s.gain = s.ctx.createGain(); s.gain.gain.value = 0.0001;
+    s.osc.connect(s.gain).connect(s.ctx.destination);
+    s.osc.start();
+    s.gain.gain.exponentialRampToValueAtTime(0.22, s.ctx.currentTime + 0.05);
+  };
+  const setHz = (hz) => { const s = ref.current; if (s.osc) s.osc.frequency.setTargetAtTime(hz, s.ctx.currentTime, 0.02); };
+  const stop = () => {
+    const s = ref.current; if (!s.osc) return;
+    const o = s.osc, g = s.gain; g.gain.setTargetAtTime(0.0001, s.ctx.currentTime, 0.03);
+    setTimeout(() => { try { o.stop(); } catch {} }, 120); s.osc = null; s.gain = null;
+  };
+  useEffect(() => () => stop(), []);
+  return { start, setHz, stop };
+}
+
+function App() {
+  const [hz, setHz] = useState(4000);
+  const [toneOn, setToneOn] = useState(false);
+  const [character, setCharacter] = useState(null);
+  const [laterality, setLaterality] = useState(null);
+  const [timing, setTiming] = useState(null);
+  const [onset, setOnset] = useState(null);
+  const [symptoms, setSymptoms] = useState([]);
+  const tone = useTone();
+  const engineRef = useRef(null);
+  const [unsure, setUnsure] = useState(false);
+
+  useEffect(() => { engineRef.current = new PeaceAudio.AudioEngine(); return () => engineRef.current?.dispose(); }, []);
+
+  const toggleTone = () => { if (toneOn) { tone.stop(); setToneOn(false); } else { tone.start(hz); setToneOn(true); } };
+  const onSlider = (v) => { const f = sliderToHz(v); setHz(f); if (toneOn) tone.setHz(f); };
+
+  const previewCharacter = (c) => {
+    setCharacter(c.id);
+    const eng = engineRef.current; if (!eng) return;
+    if (c.preview === 'tone') { tone.stop(); setToneOn(false); tone.start(c.id === 'cricket' ? 9000 : hz); setToneOn(true); }
+    else if (c.preview) {
+      const color = c.preview === 'hissing' ? 'white' : 'brown';
+      eng.play({ version:1, tinnitus:{}, layers:[{type:'noise', color, gain:0.6, notch:{enabled:false,centerHz:4000,octaves:1}}], master:{gain:0.3}, timer:{minutes:0} });
+      setTimeout(() => eng.stop(), 3500);
+    }
+  };
+
+  const toggleSymptom = (id) => setSymptoms((s) => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+
+  const result = useMemo(() => PeaceIdentify.triage({ character, laterality, timing, onset, symptoms }), [character, laterality, timing, onset, symptoms]);
+  const rec = useMemo(() => PeaceIdentify.recommend({ pitchHz: unsure ? null : hz, character: character || 'tonal' }), [hz, character, unsure]);
+
+  const openInStudio = () => {
+    tone.stop(); engineRef.current?.stop();
+    localStorage.setItem('peace.incomingProfile', JSON.stringify(rec.profile));
+    window.location.href = './index.html';
+  };
+
+  return (
+    <div className="shell">
+      <div className="between" style={{ marginBottom: 18 }}>
+        <div className="row">
+          <img src="../design-system/assets/aurum-mark.svg" width="30" height="30" alt="" />
+          <div><h1>Identify Your Tinnitus</h1><div className="cap" style={{marginTop:2}}>Match it · understand it · tune to it</div></div>
+        </div>
+        <a className="toplink" href="./index.html">Skip to Studio →</a>
+      </div>
+
+      <div className="cols">
+        {/* ── Inputs ── */}
+        <div className="stack">
+          {/* Pitch matcher */}
+          <div className="panel pad stack">
+            <div><span className="cap">Step 1 · Match the pitch</span></div>
+            <h2>Find the pitch closest to your tinnitus</h2>
+            <p className="sub">Play the tone and slide until it sits right on top of your tinnitus. Use headphones if you can. Not sure? That's fine — tick “I can't pin it down”.</p>
+            <div className="well" style={{ padding: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div><div className="cap">Matched pitch</div><div className="freqval">{hz >= 1000 ? (hz/1000).toFixed(2) + 'k' : hz}<span style={{fontSize:16, color:'var(--text-muted)'}}> Hz</span></div></div>
+              <Button variant={toneOn ? 'fill' : 'outline'} onClick={toggleTone}>{toneOn ? '◼ Stop tone' : '▶ Play tone'}</Button>
+            </div>
+            <input className="slider" type="range" min="0" max="1000" value={hzToSlider(hz)} onChange={(e) => onSlider(+e.target.value)} />
+            <div className="between"><span className="cap">100 Hz</span><span className="cap">14 kHz</span></div>
+            <label className="row" style={{ cursor: 'pointer' }}>
+              <Toggle checked={unsure} onChange={setUnsure} /> <span className="sub">I can't pin down a pitch (use broadband masking)</span>
+            </label>
+          </div>
+
+          {/* Character */}
+          <div className="panel pad stack">
+            <span className="cap">Step 2 · What does it sound like?</span>
+            <div className="grid2">
+              {CHARACTERS.map(c => (
+                <button key={c.id} className="chip" aria-pressed={character === c.id} onClick={() => previewCharacter(c)}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span>{c.label}{c.preview ? ' ▸' : ''}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.7, whiteSpace: 'normal' }}>{c.desc}</span>
+                </button>
+              ))}
+            </div>
+            <p className="sub">Tap a type to hear an example (where we can preview one). “Whooshing” and “clicking” aren't previewed — they point to specific causes worth checking.</p>
+          </div>
+
+          {/* Where / when */}
+          <div className="panel pad stack">
+            <span className="cap">Step 3 · Where & when</span>
+            <div><div className="sub" style={{marginBottom:6}}>Which ear?</div><div className="chips">{LATERALITY.map(([id,l]) => <button key={id} className="chip" aria-pressed={laterality===id} onClick={()=>setLaterality(id)}>{l}</button>)}</div></div>
+            <div><div className="sub" style={{marginBottom:6}}>Pattern?</div><div className="chips">{TIMING.map(([id,l]) => <button key={id} className="chip" aria-pressed={timing===id} onClick={()=>setTiming(id)}>{l}</button>)}</div></div>
+            <div><div className="sub" style={{marginBottom:6}}>Onset?</div><div className="chips">{ONSET.map(([id,l]) => <button key={id} className="chip" aria-pressed={onset===id} onClick={()=>setOnset(id)}>{l}</button>)}</div></div>
+          </div>
+
+          {/* Symptoms */}
+          <div className="panel pad stack">
+            <span className="cap">Step 4 · Anything else? (tick all that apply)</span>
+            <div className="chips">{SYMPTOMS.map(([id,l]) => <button key={id} className="chip" aria-pressed={symptoms.includes(id)} onClick={()=>toggleSymptom(id)}>{l}</button>)}</div>
+          </div>
+        </div>
+
+        {/* ── Results (sticky on desktop) ── */}
+        <div className="stack results">
+          <div className="panel pad stack">
+            <span className="cap">What this could mean</span>
+            {result.topSeverity !== 'info' && (
+              <Badge tone={result.topSeverity === 'emergency' || result.topSeverity === 'urgent' ? 'live' : 'gold'} dot>
+                {result.topSeverity === 'emergency' ? 'Seek care now' : result.topSeverity === 'urgent' ? 'See a doctor soon' : 'Worth a check-up'}
+              </Badge>
+            )}
+            <div className="stack" style={{ gap: 10 }}>
+              {result.flags.map(f => {
+                const s = SEV[f.severity];
+                return (
+                  <div key={f.id} className="flag" style={{ background: s.bg, boxShadow: `inset 0 0 0 1px ${s.bd}` }}>
+                    <div className="row" style={{ justifyContent: 'space-between' }}>
+                      <span className="t" style={{ color: s.fg }}>{f.title}</span>
+                      <span className="cap" style={{ color: s.fg }}>{s.tag}</span>
+                    </div>
+                    <span className="m">{f.message}</span>
+                    <span className="a" style={{ color: s.fg }}>→ {f.action}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="panel pad stack">
+            <span className="cap">Your suggested sound</span>
+            <h2 style={{ textTransform: 'capitalize' }}>{rec.strategy.replace('-', ' ')}</h2>
+            <p className="sub">{rec.explanation}</p>
+            {rec.caveats.map((c, i) => <p key={i} className="sub" style={{ color: 'var(--color-gold-300)' }}>⚠ {c}</p>)}
+            <Button full onClick={openInStudio}>Open in Studio with this sound →</Button>
+            <p className="disclaimer">Sound therapy offers relief and self-management. It is not a medical device and not a substitute for an audiologist or doctor.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<script type="module">
+import { AudioEngine } from '../src/audio/engine.js';
+import { triage, recommend } from '../src/identify/index.js';
+
+const root = document.getElementById('root');
+try {
+  window.PeaceAudio = { AudioEngine };
+  window.PeaceIdentify = { triage, recommend };
+
+  const COMPONENTS = ['core/Button', 'core/Toggle', 'core/Badge'];
+  const NS = {};
+  for (const c of COMPONENTS) {
+    let src = await (await fetch(`../design-system/components/${c}.jsx`)).text();
+    src = src.replace(/import\s+React\s+from\s+['"]react['"];?/g, '').replace(/export\s+function\s+(\w+)/g, 'NS.$1 = function $1');
+    new Function('React', 'NS', Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code)(window.React, NS);
+  }
+  const code = Babel.transform(document.getElementById('peace-app').textContent, { presets: [['react', { runtime: 'classic' }]] }).code;
+  new Function('React', 'ReactDOM', 'Button', 'Toggle', 'Badge', 'PeaceAudio', 'PeaceIdentify', code)(
+    window.React, window.ReactDOM, NS.Button, NS.Toggle, NS.Badge, window.PeaceAudio, window.PeaceIdentify);
+} catch (e) { root.textContent = 'Error: ' + e.message; console.error(e); }
+</script>
+</body>
+</html>
