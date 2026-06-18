@@ -1,0 +1,10 @@
+{
+  "name": "peace-generator",
+  "version": "0.1.0",
+  "description": "A free, web-based tinnitus relief sound tool — frequency-matched noise, notched sound and maskers with seamless loopable export.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}

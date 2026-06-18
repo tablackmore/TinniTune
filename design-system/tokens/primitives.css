@@ -1,0 +1,138 @@
+/* ============================================================
+   AURUM — PRIMITIVES
+   Raw scale values. The literal material of the system.
+   Do NOT consume these directly in product code — use semantic.css.
+   ============================================================ */
+:root {
+  /* ---- OBSIDIAN — the neutral spine (near-black machined metal) ---- */
+  --color-obsidian-1000: #050507;
+  --color-obsidian-950:  #08080B;
+  --color-obsidian-900:  #0C0C11;
+  --color-obsidian-850:  #111118;
+  --color-obsidian-800:  #16161F;
+  --color-obsidian-750:  #1C1C26;
+  --color-obsidian-700:  #23232E;
+  --color-obsidian-600:  #2D2D3A;
+  --color-obsidian-500:  #3C3C4A;
+  --color-obsidian-400:  #54545F;
+  --color-obsidian-300:  #767682;
+  --color-obsidian-200:  #9D9DA8;
+  --color-obsidian-100:  #C7C7CF;
+  --color-obsidian-050:  #E9E9EE;
+  --color-white:         #FFFFFF;
+
+  /* ---- AURUM GOLD — the single precious accent ---- */
+  --color-gold-800: #6E531A;
+  --color-gold-700: #8C6A1E;
+  --color-gold-600: #B0852A;
+  --color-gold-500: #D6A431;   /* core brand gold */
+  --color-gold-400: #E8BC4E;
+  --color-gold-300: #F2D484;
+  --color-gold-200: #F8E6B6;
+  --color-gold-100: #FCF3DA;
+
+  /* ---- ICE — cool counter-accent (Deck B / data contrast only) ---- */
+  --color-ice-600: #2E8FBF;
+  --color-ice-500: #46AEDC;
+  --color-ice-400: #6FC8EE;
+  --color-ice-300: #A6E0F7;
+
+  /* ---- METER — functional VU ladder (used only on meters/levels) ---- */
+  --color-meter-low:  #34D17F;
+  --color-meter-mid:  #F2C53D;
+  --color-meter-high: #FF5247;
+  --color-cue:        #FF8A3D;
+
+  /* ---- TYPE ---- */
+  --font-display: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --font-size-90:  0.625rem;   /* 10 — micro caps */
+  --font-size-100: 0.6875rem;  /* 11 */
+  --font-size-130: 0.8125rem;  /* 13 */
+  --font-size-150: 0.9375rem;  /* 15 */
+  --font-size-200: 1rem;       /* 16 — base */
+  --font-size-300: 1.25rem;    /* 20 */
+  --font-size-400: 1.5rem;     /* 24 */
+  --font-size-500: 2rem;       /* 32 */
+  --font-size-600: 2.75rem;    /* 44 */
+  --font-size-700: 3.5rem;     /* 56 */
+  --font-size-800: 4.5rem;     /* 72 — hero readouts */
+
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-tight: 1.04;
+  --line-snug: 1.2;
+  --line-normal: 1.5;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.08em;
+  --tracking-caps: 0.22em;   /* the AURUM signature — widely-tracked micro caps */
+
+  /* ---- SPACING — 4px grid ---- */
+  --space-0: 0;
+  --space-1: 0.25rem;  /* 4 */
+  --space-2: 0.5rem;   /* 8 */
+  --space-3: 0.75rem;  /* 12 */
+  --space-4: 1rem;     /* 16 */
+  --space-5: 1.5rem;   /* 24 */
+  --space-6: 2rem;     /* 32 */
+  --space-7: 2.5rem;   /* 40 */
+  --space-8: 3rem;     /* 48 */
+  --space-9: 4rem;     /* 64 */
+  --space-10: 5rem;    /* 80 */
+  --space-12: 6rem;    /* 96 */
+
+  /* ---- RADIUS ---- */
+  --radius-sm: 4px;
+  --radius-md: 10px;
+  --radius-lg: 18px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+
+  /* ---- SIZING ---- */
+  --control-h-sm: 32px;
+  --control-h-md: 44px;   /* min touch / hardware-faithful hit target */
+  --control-h-lg: 56px;
+
+  /* ---- ELEVATION + MATERIAL ----
+     Skeuomorphic depth = outer drop shadow + inner top highlight + inner bottom shade. */
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-2: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-3: 0 12px 32px rgba(0,0,0,0.55);
+  --shadow-4: 0 24px 60px rgba(0,0,0,0.6);
+
+  /* raised machined surface */
+  --material-raised:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 2px 6px rgba(0,0,0,0.55);
+  /* pressed / recessed well (fader track, screen inset) */
+  --material-inset:
+    inset 0 2px 5px rgba(0,0,0,0.7),
+    inset 0 -1px 0 rgba(255,255,255,0.04);
+  /* gold glow for active state */
+  --glow-gold: 0 0 0 1px rgba(214,164,49,0.5), 0 0 18px rgba(214,164,49,0.35);
+  --glow-ice:  0 0 0 1px rgba(70,174,220,0.5), 0 0 18px rgba(70,174,220,0.32);
+
+  /* hairline */
+  --hairline: rgba(255,255,255,0.08);
+  --hairline-strong: rgba(255,255,255,0.14);
+
+  /* ---- MOTION ---- */
+  --motion-fast: 120ms;
+  --motion-base: 190ms;
+  --motion-slow: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- LAYOUT ---- */
+  --header-height: 4.5rem;
+  --footer-height: 4.5rem;
+}

@@ -1,0 +1,8 @@
+/* ============================================================
+   AURUM Design System — global entry point.
+   Consumers link THIS file only. Imports must reach every
+   token + @font-face file. Keep this list import-only.
+   ============================================================ */
+@import url('./tokens/fonts.css');
+@import url('./tokens/primitives.css');
+@import url('./tokens/semantic.css');

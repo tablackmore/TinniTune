@@ -1,0 +1,94 @@
+/* ============================================================
+   AURUM — SEMANTIC ALIASES
+   Purpose-named tokens. THESE are what product code consumes.
+   ============================================================ */
+:root {
+  /* ---- SURFACES (dark, layered like stacked machined plates) ---- */
+  --surface-page-outer: var(--color-obsidian-1000);
+  --surface-page:       var(--color-obsidian-950);
+  --surface-panel:      var(--color-obsidian-900);
+  --surface-card:       var(--color-obsidian-850);
+  --surface-raised:     var(--color-obsidian-800);
+  --surface-control:    var(--color-obsidian-700);
+  --surface-control-hi: var(--color-obsidian-600);
+  --surface-well:       var(--color-obsidian-1000);  /* recessed screens/tracks */
+  --surface-selected:   var(--color-obsidian-750);
+
+  /* ---- TEXT ---- */
+  --text-primary:   var(--color-obsidian-050);
+  --text-secondary: var(--color-obsidian-200);
+  --text-muted:     var(--color-obsidian-300);
+  --text-disabled:  var(--color-obsidian-400);
+  --text-on-gold:   var(--color-obsidian-1000);
+  --text-readout:   var(--color-gold-300);   /* numeric data on screens */
+
+  /* ---- BRAND / ACTION ---- */
+  --color-action-primary:       var(--color-gold-500);
+  --color-action-primary-hover:  var(--color-gold-400);
+  --color-action-primary-press:  var(--color-gold-600);
+  --color-accent:               var(--color-gold-500);
+  --color-accent-soft:          var(--color-gold-300);
+
+  /* per-deck identity */
+  --color-deck-a: var(--color-gold-500);
+  --color-deck-b: var(--color-ice-500);
+
+  /* ---- FEEDBACK / METERS ---- */
+  --color-level-low:  var(--color-meter-low);
+  --color-level-mid:  var(--color-meter-mid);
+  --color-level-high: var(--color-meter-high);
+  --color-cue:        var(--color-cue);
+  --color-success:    var(--color-meter-low);
+  --color-warning:    var(--color-meter-mid);
+  --color-danger:     var(--color-meter-high);
+
+  /* ---- LINES ---- */
+  --border-hairline: var(--hairline);
+  --border-strong:   var(--hairline-strong);
+  --border-control:  rgba(0,0,0,0.6);
+
+  /* ---- TYPE ROLES ---- */
+  --type-hero:    var(--font-weight-medium) var(--font-size-800)/var(--line-tight) var(--font-display);
+  --type-display: var(--font-weight-medium) var(--font-size-600)/var(--line-snug) var(--font-display);
+  --type-title:   var(--font-weight-semibold) var(--font-size-400)/var(--line-snug) var(--font-display);
+  --type-body:    var(--font-weight-regular) var(--font-size-200)/var(--line-normal) var(--font-display);
+  --type-label:   var(--font-weight-medium) var(--font-size-130)/var(--line-snug) var(--font-display);
+  --type-readout: var(--font-weight-700) var(--font-size-500)/1 var(--font-mono);
+  --type-caps:    var(--font-weight-bold) var(--font-size-100)/1 var(--font-mono);
+
+  /* ---- ELEVATION ROLES ---- */
+  --elev-card:    var(--shadow-2);
+  --elev-overlay: var(--shadow-4);
+  --elev-control: var(--material-raised);
+  --elev-recess:  var(--material-inset);
+
+  /* ---- MOTION ROLES ---- */
+  --transition-control: all var(--motion-fast) var(--ease-standard);
+  --transition-ui: all var(--motion-base) var(--ease-standard);
+}
+
+/* element defaults */
+html { color-scheme: dark; }
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font: var(--type-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* the AURUM signature caps treatment */
+.cs-caps {
+  font: var(--type-caps);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

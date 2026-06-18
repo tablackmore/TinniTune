@@ -1,0 +1,300 @@
+<!-- @dsCard group="Mixer" viewport="1440x880" name="AURUM Two-Deck Mixer" subtitle="Full interactive mixer surface — decks, channel strip, master, library" -->
+<!-- @startingPoint section="Mixer" subtitle="Two-deck mixer surface" viewport="1440x880" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AURUM Mixer</title>
+<link rel="stylesheet" href="../../styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--surface-page-outer); font-family: var(--font-display); }
+  #root { width: 1440px; }
+  .cap { font-family: var(--font-mono); font-weight: 700; font-size: 10px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+  .panel { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); box-shadow: var(--elev-card); }
+  .well { background: var(--surface-well); box-shadow: var(--material-inset); border-radius: var(--radius-md); }
+  .ic { width: 18px; height: 18px; stroke-width: 1.75; }
+</style>
+</head>
+<body>
+<div id="root"><div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--surface-page-outer)"><img src="../../assets/aurum-mark.svg" width="64" height="64" alt="" style="animation:aurumSpin 2.4s linear infinite"><div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-muted)">Loading mixer…</div><style>@keyframes aurumSpin{to{transform:rotate(360deg)}}</style></div></div>
+<script type="text/plain" id="aurum-app">
+
+const TRACKS = [
+  { t: 'Midnight Protocol', a: 'KAITO', bpm: 124.0, key: '8A', len: '6:12' },
+  { t: 'Gold Teeth', a: 'Nimbus & Rae', bpm: 92.0, key: '11B', len: '3:48' },
+  { t: 'Concrete Bloom', a: 'Vela', bpm: 128.0, key: '4A', len: '5:30' },
+  { t: 'Afterhours', a: 'D. Mensah', bpm: 122.5, key: '9A', len: '7:04' },
+  { t: 'Brass Knuckle Soul', a: 'The Cassette', bpm: 96.0, key: '2B', len: '4:20' },
+];
+
+function Pads({ accent }){
+  const [armed, setArmed] = React.useState(0);
+  const col = accent === 'ice' ? 'var(--color-ice-500)' : 'var(--color-gold-500)';
+  const colSoft = accent === 'ice' ? 'rgba(70,174,220,0.16)' : 'rgba(214,164,49,0.16)';
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+      {[0,1,2,3].map(i => (
+        <button key={i} onClick={()=>setArmed(i)} style={{
+          height:44, border:'none', borderRadius:'var(--radius-md)', cursor:'pointer',
+          fontFamily:'var(--font-mono)', fontWeight:700, fontSize:11, letterSpacing:'0.1em',
+          color: armed===i ? 'var(--text-on-gold)' : col,
+          background: armed===i
+            ? `radial-gradient(circle at 40% 30%, ${accent==='ice'?'var(--color-ice-400)':'var(--color-gold-400)'}, ${accent==='ice'?'var(--color-ice-600)':'var(--color-gold-600)'})`
+            : colSoft,
+          boxShadow: armed===i
+            ? (accent==='ice'?'var(--glow-ice)':'var(--glow-gold)')
+            : `inset 0 0 0 1px ${col}`,
+          transition:'all var(--motion-fast) var(--ease-standard)',
+        }}>{['CUE','IN','OUT','×½'][i]}</button>
+      ))}
+    </div>
+  );
+}
+
+function Deck({ deck, track, playing, onToggle, pos, onSeek, level }){
+  const accent = deck === 'B' ? 'ice' : 'gold';
+  const col = deck === 'B' ? 'var(--color-ice-400)' : 'var(--color-gold-400)';
+  return (
+    <div className="panel" style={{ padding:20, display:'flex', flexDirection:'column', gap:16 }}>
+      {/* track header */}
+      <div style={{ display:'flex', gap:14, alignItems:'center' }}>
+        <div className="well" style={{ width:62, height:62, flex:'none', borderRadius:'var(--radius-md)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+          <div style={{ width:'100%', height:'100%', background:`linear-gradient(135deg, ${deck==='B'?'#173a4a':'#3a2f12'}, var(--surface-well))`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <i data-lucide="disc-3" className="ic" style={{ stroke: col, width:24, height:24 }}></i>
+          </div>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+            <Badge tone={deck==='B'?'ice':'gold'}>Deck {deck}</Badge>
+            <span className="cap">{track.key} · {track.bpm.toFixed(1)} BPM</span>
+          </div>
+          <div style={{ fontWeight:600, fontSize:18, color:'var(--text-primary)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{track.t}</div>
+          <div style={{ fontSize:13, color:'var(--text-secondary)' }}>{track.a}</div>
+        </div>
+      </div>
+
+      {/* waveform */}
+      <Waveform seed={deck==='B'?31:12} progress={pos} accent={accent} height={84} onSeek={onSeek} beatEvery={20} />
+      <div style={{ display:'flex', justifyContent:'space-between' }}>
+        <span className="cap" style={{ color: col }}>{fmt(pos*toSec(track.len))}</span>
+        <span className="cap">-{fmt((1-pos)*toSec(track.len))}</span>
+      </div>
+
+      {/* jog + transport */}
+      <div style={{ display:'flex', gap:18, alignItems:'center' }}>
+        <JogWheel deck={deck} playing={playing} bpm={track.bpm} size={150} />
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+            <TransportButton kind="cue" label="Cue" accent={accent} size={50} />
+            <TransportButton kind={playing?'pause':'play'} active={playing} onClick={onToggle} label={playing?'Pause':'Play'} accent={accent} size={62} />
+            <TransportButton kind="loop" label="Loop" accent={accent} size={50} />
+          </div>
+          <Pads accent={accent} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function fmt(s){ s=Math.max(0,Math.round(s)); const m=Math.floor(s/60); const ss=(s%60).toString().padStart(2,'0'); return `${m}:${ss}`; }
+function toSec(str){ const [m,s]=str.split(':').map(Number); return m*60+s; }
+
+function ChannelStrip({ deck, vol, setVol, eq, setEq, filt, setFilt, level, cue, setCue }){
+  const accent = deck==='B'?'ice':'gold';
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14, flex:1 }}>
+      <Badge tone={deck==='B'?'ice':'gold'}>{deck}</Badge>
+      <Knob value={eq.hi} onChange={v=>setEq({...eq,hi:v})} label="Hi" bipolar unit="" accent={accent} size={46} />
+      <Knob value={eq.mid} onChange={v=>setEq({...eq,mid:v})} label="Mid" bipolar unit="" accent={accent} size={46} />
+      <Knob value={eq.low} onChange={v=>setEq({...eq,low:v})} label="Low" bipolar unit="" accent={accent} size={46} />
+      <Knob value={filt} onChange={setFilt} label="Filter" bipolar unit="" accent={accent} size={46} />
+      <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+        <Fader value={vol} onChange={setVol} accent={accent} height={150} ticks={9} />
+        <VUMeter level={level} peak={0.94} length={150} thickness={10} />
+      </div>
+      <TransportButton kind="cue" glyph={<i data-lucide="headphones" className="ic" style={{stroke: cue ? 'var(--text-on-gold)':'var(--color-obsidian-050)'}}></i>} active={cue} onClick={()=>setCue(!cue)} accent={accent} size={40} />
+    </div>
+  );
+}
+
+function App(){
+  const [playA,setPlayA]=React.useState(true);
+  const [playB,setPlayB]=React.useState(false);
+  const [posA,setPosA]=React.useState(0.28);
+  const [posB,setPosB]=React.useState(0.62);
+  const [volA,setVolA]=React.useState(82);
+  const [volB,setVolB]=React.useState(48);
+  const [eqA,setEqA]=React.useState({hi:55,mid:50,low:62});
+  const [eqB,setEqB]=React.useState({hi:48,mid:52,low:44});
+  const [filtA,setFiltA]=React.useState(50);
+  const [filtB,setFiltB]=React.useState(50);
+  const [xf,setXf]=React.useState(38);
+  const [cueA,setCueA]=React.useState(true);
+  const [cueB,setCueB]=React.useState(false);
+  const [master,setMaster]=React.useState(76);
+  const [lvlA,setLvlA]=React.useState(0.7);
+  const [lvlB,setLvlB]=React.useState(0.3);
+  const [loaded,setLoaded]=React.useState({A:TRACKS[0],B:TRACKS[2]});
+  const [clock,setClock]=React.useState(0);
+
+  React.useEffect(()=>{
+    const t=setInterval(()=>{
+      const xa=(100-xf)/100, xb=xf/100;
+      setLvlA(playA?(0.55+Math.random()*0.4)*(volA/100)*xa+0.05:0.02);
+      setLvlB(playB?(0.55+Math.random()*0.4)*(volB/100)*xb+0.05:0.02);
+      if(playA) setPosA(p=>(p+0.0009)%1);
+      if(playB) setPosB(p=>(p+0.0009)%1);
+      setClock(c=>c+0.14);
+    },140);
+    return ()=>clearInterval(t);
+  },[playA,playB,volA,volB,xf]);
+
+  React.useEffect(()=>{ if(window.lucide) lucide.createIcons(); });
+
+  const masterLvl = Math.max(lvlA,lvlB);
+
+  return (
+    <div style={{ padding:20, display:'flex', flexDirection:'column', gap:16, minHeight:880, boxSizing:'border-box' }}>
+      {/* header */}
+      <div className="panel" style={{ height:60, padding:'0 22px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          <img src="../../assets/aurum-mark.svg" width="34" height="34" alt="" />
+          <span style={{ fontWeight:600, fontSize:20, letterSpacing:'0.18em', color:'var(--text-primary)' }}>AURUM</span>
+          <span className="cap">Precision Mixing</span>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:26 }}>
+          <div style={{ textAlign:'center' }}>
+            <div className="cap">Session</div>
+            <div style={{ fontFamily:'var(--font-mono)', fontWeight:700, fontSize:22, color:'var(--color-gold-300)' }}>{fmt(clock)}</div>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <Badge tone="live" dot>On Air</Badge>
+            <Button variant="outline" size="sm" icon={<i data-lucide="radio" className="ic" style={{width:15,height:15,stroke:'var(--color-gold-300)'}}></i>}>Stream</Button>
+          </div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+          <VUMeter level={masterLvl} peak={0.96} orientation="horizontal" length={150} thickness={10} />
+          <Knob value={master} onChange={setMaster} label="Master" unit="" size={44} />
+        </div>
+      </div>
+
+      {/* main */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 360px 1fr', gap:16, alignItems:'start' }}>
+        <Deck deck="A" track={loaded.A} playing={playA} onToggle={()=>setPlayA(p=>!p)} pos={posA} onSeek={setPosA} level={lvlA} />
+
+        {/* center mixer */}
+        <div className="panel" style={{ padding:'20px 18px', display:'flex', flexDirection:'column', gap:16 }}>
+          <div style={{ textAlign:'center' }} className="cap">Channel</div>
+          <div style={{ display:'flex', gap:14 }}>
+            <ChannelStrip deck="A" vol={volA} setVol={setVolA} eq={eqA} setEq={setEqA} filt={filtA} setFilt={setFiltA} level={lvlA} cue={cueA} setCue={setCueA} />
+            <div style={{ width:1, background:'var(--border-hairline)' }} />
+            <ChannelStrip deck="B" vol={volB} setVol={setVolB} eq={eqB} setEq={setEqB} filt={filtB} setFilt={setFiltB} level={lvlB} cue={cueB} setCue={setCueB} />
+          </div>
+          {/* crossfader */}
+          <div className="well" style={{ padding:'14px 16px', display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <span className="cap" style={{color:'var(--color-gold-400)'}}>A</span>
+              <span className="cap">Crossfade</span>
+              <span className="cap" style={{color:'var(--color-ice-400)'}}>B</span>
+            </div>
+            <CrossfadeBar value={xf} onChange={setXf} />
+          </div>
+        </div>
+
+        <Deck deck="B" track={loaded.B} playing={playB} onToggle={()=>setPlayB(p=>!p)} pos={posB} onSeek={setPosB} level={lvlB} />
+      </div>
+
+      {/* library */}
+      <div className="panel" style={{ padding:'14px 18px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <i data-lucide="list-music" className="ic" style={{stroke:'var(--color-gold-300)'}}></i>
+            <span className="cap">Library · 1,284 tracks</span>
+          </div>
+          <div className="well" style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderRadius:'var(--radius-full)', width:240 }}>
+            <i data-lucide="search" className="ic" style={{width:15,height:15,stroke:'var(--text-muted)'}}></i>
+            <span style={{ fontSize:13, color:'var(--text-muted)' }}>Search tracks, BPM, key…</span>
+          </div>
+        </div>
+        <Library onLoad={(track,deck)=>setLoaded(l=>({...l,[deck]:track}))} />
+      </div>
+    </div>
+  );
+}
+
+function CrossfadeBar({ value, onChange }){
+  const ref=React.useRef(null); const [drag,setDrag]=React.useState(false);
+  const set=(x)=>{ const r=ref.current.getBoundingClientRect(); let p=(x-r.left)/r.width; p=Math.max(0,Math.min(1,p)); onChange(Math.round(p*100)); };
+  React.useEffect(()=>{ if(!drag)return; const m=e=>set(e.touches?e.touches[0].clientX:e.clientX); const u=()=>setDrag(false);
+    window.addEventListener('mousemove',m); window.addEventListener('mouseup',u); window.addEventListener('touchmove',m); window.addEventListener('touchend',u);
+    return ()=>{window.removeEventListener('mousemove',m);window.removeEventListener('mouseup',u);window.removeEventListener('touchmove',m);window.removeEventListener('touchend',u);}; },[drag]);
+  return (
+    <div ref={ref} onMouseDown={e=>{setDrag(true);set(e.clientX);}} onTouchStart={e=>{setDrag(true);set(e.touches[0].clientX);}}
+      style={{ position:'relative', height:24, cursor:'pointer', touchAction:'none' }}>
+      <div style={{ position:'absolute', top:'50%', left:0, right:0, height:6, transform:'translateY(-50%)', borderRadius:'var(--radius-full)', background:'var(--surface-page-outer)', boxShadow:'inset 0 1px 3px rgba(0,0,0,0.8)' }} />
+      <div style={{ position:'absolute', top:'50%', left:`calc(${value}% - 13px)`, transform:'translateY(-50%)', width:26, height:24, borderRadius:5,
+        background:'linear-gradient(180deg, var(--color-obsidian-400), var(--color-obsidian-700) 55%, var(--color-obsidian-900))',
+        boxShadow:`inset 0 1px 0 rgba(255,255,255,0.2), 0 3px 8px rgba(0,0,0,0.6)${drag?', var(--glow-gold)':''}`,
+        transition: drag?'none':'left var(--motion-fast) var(--ease-standard)',
+        display:'flex',alignItems:'center',justifyContent:'center' }}>
+        <div style={{ width:2, height:14, background:'var(--color-gold-400)', borderRadius:2 }} />
+      </div>
+    </div>
+  );
+}
+
+function Library({ onLoad }){
+  const [sel,setSel]=React.useState(0);
+  return (
+    <div>
+      {TRACKS.map((t,i)=>(
+        <div key={i} onClick={()=>setSel(i)} style={{
+          display:'grid', gridTemplateColumns:'24px 1fr 90px 60px 60px 150px', alignItems:'center', gap:12,
+          padding:'9px 10px', borderRadius:'var(--radius-sm)', cursor:'pointer',
+          background: sel===i ? 'var(--surface-selected)' : 'transparent',
+          boxShadow: sel===i ? 'inset 0 0 0 1px var(--border-hairline)' : 'none',
+        }}>
+          <i data-lucide="music-2" className="ic" style={{width:15,height:15,stroke: sel===i?'var(--color-gold-300)':'var(--text-muted)'}}></i>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:14, color:'var(--text-primary)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{t.t}</div>
+            <div style={{ fontSize:12, color:'var(--text-muted)' }}>{t.a}</div>
+          </div>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--text-secondary)' }}>{t.bpm.toFixed(1)}</span>
+          <Badge tone="neutral">{t.key}</Badge>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--text-muted)' }}>{t.len}</span>
+          <div style={{ display:'flex', gap:6, justifyContent:'flex-end' }}>
+            <Button variant="outline" size="sm" onClick={(e)=>{e.stopPropagation();onLoad(t,'A');}} style={{height:28,padding:'0 12px'}}>▸ A</Button>
+            <Button variant="ghost" size="sm" onClick={(e)=>{e.stopPropagation();onLoad(t,'B');}} style={{height:28,padding:'0 12px',color:'var(--color-ice-300)'}}>▸ B</Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>
+(async () => {
+  const root = document.getElementById('root');
+  try {
+    const FILES = ['../../components/core/Button.jsx','../../components/core/Toggle.jsx','../../components/core/Slider.jsx','../../components/core/Badge.jsx','../../components/dj/Knob.jsx','../../components/dj/Fader.jsx','../../components/dj/JogWheel.jsx','../../components/dj/VUMeter.jsx','../../components/dj/Waveform.jsx','../../components/dj/TransportButton.jsx'];
+    const NS = {};
+    for (const f of FILES) {
+      let src = await (await fetch(f)).text();
+      src = src.replace(/import\s+React\s+from\s+['"]react['"];?/g,'').replace(/export\s+function\s+(\w+)/g,'NS.$1 = function $1');
+      new Function('React','NS', Babel.transform(src,{presets:[['react',{runtime:'classic'}]]}).code)(window.React, NS);
+    }
+    const appSrc = document.getElementById('aurum-app').textContent;
+    const code = Babel.transform(appSrc,{presets:[['react',{runtime:'classic'}]]}).code;
+    new Function('React','ReactDOM','lucide','Knob','Fader','JogWheel','VUMeter','Waveform','TransportButton','Button','Toggle','Badge', code)(window.React, window.ReactDOM, window.lucide, NS.Knob,NS.Fader,NS.JogWheel,NS.VUMeter,NS.Waveform,NS.TransportButton,NS.Button,NS.Toggle,NS.Badge);
+  } catch(e){ root.textContent = 'Error: '+e.message; console.error(e); }
+})();
+</script>
+</body>
+</html>
