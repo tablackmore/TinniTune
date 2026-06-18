@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Core — Phase 1 harness</title>
+<link rel="stylesheet" href="../design-system/styles.css">
+<style>
+  body { margin: 0; padding: 24px; background: var(--surface-page-outer); color: var(--text-primary); font-family: var(--font-display); }
+  h1 { font-weight: 500; letter-spacing: 0.04em; font-size: 22px; }
+  .cap { font-family: var(--font-mono); font-weight: 700; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-muted); }
+  .panel { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--radius-lg); box-shadow: var(--elev-card); padding: 20px; max-width: 720px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+  button { font-family: var(--font-display); font-weight: 600; font-size: 14px; height: 40px; padding: 0 18px; border: none; border-radius: var(--radius-md); cursor: pointer;
+           background: linear-gradient(180deg, var(--color-gold-400), var(--color-gold-600)); color: var(--text-on-gold); }
+  button.ghost { background: transparent; color: var(--text-secondary); box-shadow: inset 0 0 0 1px var(--border-hairline); }
+  button[aria-pressed="true"] { box-shadow: var(--glow-gold); }
+  input[type=range] { width: 220px; accent-color: var(--color-gold-500); }
+  .meter { width: 100%; max-width: 480px; height: 16px; border-radius: var(--radius-full); background: var(--surface-well); box-shadow: inset 0 1px 3px rgba(0,0,0,0.8); overflow: hidden; }
+  .meter > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--color-meter-low), var(--color-meter-mid)); transition: width 80ms linear; }
+  code, #result { font-family: var(--font-mono); font-size: 12px; }
+  #result { white-space: pre-wrap; color: var(--text-secondary); }
+  .ok { color: var(--color-meter-low); } .bad { color: var(--color-meter-high); }
+</style>
+</head>
+<body>
+  <span class="cap">TinniTune</span>
+  <h1>Audio Core — Phase 1 harness</h1>
+  <div class="panel">
+    <div class="row">
+      <span class="cap">Color</span>
+      <button class="ghost" data-color="white">White</button>
+      <button class="ghost" data-color="pink" aria-pressed="true">Pink</button>
+      <button class="ghost" data-color="brown">Brown</button>
+    </div>
+    <div class="row">
+      <label class="cap">Master <input id="master" type="range" min="0" max="100" value="35"></label>
+      <span id="masterVal" class="cap">0.35</span>
+    </div>
+    <div class="row">
+      <label class="cap"><input id="notch" type="checkbox"> Notch @ <span id="freqVal">4000</span> Hz</label>
+      <input id="freq" type="range" min="200" max="12000" value="4000">
+    </div>
+    <div class="row">
+      <button id="play" aria-pressed="false">▶ Play</button>
+      <button id="stop" class="ghost">■ Stop</button>
+      <button id="dl" class="ghost">⤓ Download WAV (10s loop)</button>
+    </div>
+    <div class="row">
+      <span class="cap">Output level</span>
+      <div class="meter"><i id="meterFill"></i></div>
+    </div>
+    <hr style="border-color: var(--border-hairline); margin: 20px 0;">
+    <div class="row">
+      <button id="selftest">Run self-test</button>
+      <span id="verdict" class="cap"></span>
+    </div>
+    <div id="result"></div>
+  </div>
+
+<script type="module">
+import { AudioEngine } from '../src/audio/engine.js';
+import { DEFAULT_PROFILE } from '../src/audio/profile.js';
+import { renderProfileToWav, downloadBlob } from '../src/audio/export.js';
+
+const engine = new AudioEngine();
+let color = 'pink';
+
+function profile() {
+  return {
+    version: 1,
+    tinnitus: {},
+    layers: [{
+      type: 'noise', color, gain: 0.6,
+      notch: { enabled: document.getElementById('notch').checked,
+               centerHz: +document.getElementById('freq').value, octaves: 1.0 },
+    }],
+    master: { gain: +document.getElementById('master').value / 100 },
+    timer: { minutes: 0, fadeOutSec: 30 },
+  };
+}
+
+document.querySelectorAll('[data-color]').forEach(b => b.onclick = () => {
+  color = b.dataset.color;
+  document.querySelectorAll('[data-color]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  if (engine.playing) engine.play(profile());
+});
+
+document.getElementById('master').oninput = (e) => {
+  const g = e.target.value / 100;
+  document.getElementById('masterVal').textContent = g.toFixed(2);
+  engine.setMasterGain(g);
+};
+document.getElementById('freq').oninput = (e) => {
+  document.getElementById('freqVal').textContent = e.target.value;
+  if (engine.playing) engine.play(profile());
+};
+document.getElementById('notch').onchange = () => { if (engine.playing) engine.play(profile()); };
+
+const playBtn = document.getElementById('play');
+playBtn.onclick = async () => { await engine.play(profile()); playBtn.setAttribute('aria-pressed', 'true'); };
+document.getElementById('stop').onclick = () => { engine.stop(); playBtn.setAttribute('aria-pressed', 'false'); };
+document.getElementById('dl').onclick = async () => {
+  const blob = await renderProfileToWav(profile(), { seconds: 10 });
+  downloadBlob(blob, `peace-${color}.wav`);
+};
+
+// Live meter loop
+const fill = document.getElementById('meterFill');
+function tick() { fill.style.width = Math.min(100, engine.getLevel() * 140).toFixed(1) + '%'; requestAnimationFrame(tick); }
+tick();
+
+// ───────── Automated self-test (Playwright-readable) ─────────
+document.getElementById('selftest').onclick = async () => {
+  const out = document.getElementById('result');
+  const verdict = document.getElementById('verdict');
+  const checks = [];
+  const log = (name, pass, detail) => checks.push({ name, pass, detail });
+  try {
+    // 1) Live playback produces a real, non-zero metered level.
+    await engine.play(profile());
+    await new Promise(r => setTimeout(r, 350));
+    let peak = 0;
+    for (let i = 0; i < 10; i++) { peak = Math.max(peak, engine.getLevel()); await new Promise(r => setTimeout(r, 20)); }
+    engine.stop();
+    log('live playback metered level > 0', peak > 0.001, `peak RMS=${peak.toFixed(4)}`);
+
+    // 2) Master safety cap actually clamps (ask for 5.0, must stay ≤ 0.6).
+    const loud = { ...profile(), master: { gain: 5.0 } };
+    const wavLoud = await renderProfileToWav(loud, { seconds: 1 });
+    const actx = new (window.AudioContext || window.webkitAudioContext)();
+    const decLoud = await actx.decodeAudioData(await wavLoud.arrayBuffer());
+    const dl = decLoud.getChannelData(0);
+    let peakLoud = 0; for (const v of dl) peakLoud = Math.max(peakLoud, Math.abs(v));
+    log('master gain clamped by safety ceiling', peakLoud <= 0.95, `peak abs=${peakLoud.toFixed(3)} (uncapped would clip to 1.0)`);
+
+    // 3) Export renders valid, non-silent audio.
+    const wav = await renderProfileToWav(profile(), { seconds: 3 });
+    const dec = await actx.decodeAudioData(await wav.arrayBuffer());
+    const d = dec.getChannelData(0);
+    let sum = 0; for (const v of d) sum += v * v;
+    const rms = Math.sqrt(sum / d.length);
+    log('exported WAV decodes & is non-silent', dec.length > 0 && rms > 0.001, `frames=${dec.length}, rms=${rms.toFixed(4)}`);
+
+    // 4) Export loops seamlessly (first/last samples nearly continuous).
+    const seam = Math.abs(d[0] - d[d.length - 1]);
+    log('exported loop seam is continuous', seam < 0.15, `|first-last|=${seam.toFixed(4)}`);
+
+    actx.close();
+  } catch (e) {
+    log('self-test threw', false, e.message);
+  }
+
+  const passed = checks.filter(c => c.pass).length;
+  const all = passed === checks.length;
+  out.textContent = checks.map(c => `${c.pass ? '✓' : '✗'} ${c.name} — ${c.detail}`).join('\n');
+  verdict.textContent = `${passed}/${checks.length} passed`;
+  verdict.className = 'cap ' + (all ? 'ok' : 'bad');
+  window.__selftest = { passed, total: checks.length, all, checks };
+};
+</script>
+</body>
+</html>
