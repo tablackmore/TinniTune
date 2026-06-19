@@ -163,7 +163,7 @@ function App() {
   const applyProfile = (p) => {
     const l = p?.layers?.[0]; if (!l) return;
     if (l.color) setColor(l.color);
-    setNature(['rain', 'waves', 'wind'].includes(l.nature) ? l.nature : 'none');
+    setNature(['rain', 'waves', 'wind', 'fan', 'waterfall', 'stream', 'campfire', 'tent'].includes(l.nature) ? l.nature : 'none');
     if (Number.isFinite(l.gain)) setGain(Math.round(l.gain * 100));
     if (l.notch) { setNotchOn(!!l.notch.enabled); if (l.notch.centerHz) setNotchHz(Math.round(l.notch.centerHz)); if (l.notch.octaves) setNotchOct(Math.round(l.notch.octaves * 100)); }
     if (Number.isFinite(p.master?.gain)) setMaster(Math.round(p.master.gain * 100));
@@ -279,9 +279,20 @@ function App() {
                 background: 'var(--surface-well)', color: 'var(--text-primary)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.7)',
                 fontFamily: 'var(--font-display)', fontSize: 13, cursor: 'pointer' }}>
               <option value="none">None (plain noise)</option>
-              <option value="rain">Rain</option>
-              <option value="waves">Ocean waves</option>
-              <option value="wind">Wind</option>
+              <optgroup label="Steady maskers">
+                <option value="fan">Fan / AC</option>
+                <option value="waterfall">Waterfall</option>
+              </optgroup>
+              <optgroup label="Ambient">
+                <option value="rain">Rain</option>
+                <option value="waves">Ocean waves</option>
+                <option value="wind">Wind</option>
+                <option value="stream">Stream</option>
+              </optgroup>
+              <optgroup label="Crackle &amp; droplets">
+                <option value="campfire">Campfire</option>
+                <option value="tent">Rain on a tent</option>
+              </optgroup>
             </select>
           </div>
 
