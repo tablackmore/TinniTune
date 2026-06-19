@@ -174,7 +174,7 @@ const GRAIN_SPECS = {
   ],
   beach: [
     // discrete gentle wash events (~every 5.5s): soft rise, longer recede — the "lap"
-    { rate: 0.18, attackSec: 0.35, decaySec: 0.7, amp: 1.0, band: 1700, q: 0.5, gain: 0.7 },
+    { rate: 0.11, attackSec: 0.45, decaySec: 0.9, amp: 1.0, band: 1700, q: 0.5, gain: 0.7 }, // ~9s between laps, leisurely
   ],
 };
 
