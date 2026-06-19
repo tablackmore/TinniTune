@@ -151,7 +151,7 @@ export function buildNature(ctx, kind) {
 // fine fast patter + occasional fat resonant drops on the fabric).
 const GRAIN_SPECS = {
   campfire: [
-    { rate: 0.06, decaySec: 0.06, amp: 1.0, band: 1500, q: 0.9, gain: 0.3 }, // very sparse (~1/16s), half-intensity
+    { rate: 0.06, decaySec: 0.06, amp: 1.0, band: 1500, q: 0.9, gain: 0.12 }, // very sparse (~1/16s), soft
   ],
   tent: [
     { rate: 28, decaySec: 0.006, amp: 0.55, band: 2400, q: 1.1, gain: 0.30 }, // fine patter
