@@ -48,10 +48,10 @@ export function buildNature(ctx, kind) {
   if (kind === 'waves') {
     // muffled low-mid roar that swells in and out (~11s), filter opening with the swell
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.7;
-    const amp = ctx.createGain(); amp.gain.value = 0.55;
+    const amp = ctx.createGain(); amp.gain.value = 0.62;
     const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.09;
-    const ampDepth = ctx.createGain(); ampDepth.gain.value = 0.4;
-    const cutoffDepth = ctx.createGain(); cutoffDepth.gain.value = 550;
+    const ampDepth = ctx.createGain(); ampDepth.gain.value = 0.18;
+    const cutoffDepth = ctx.createGain(); cutoffDepth.gain.value = 300;
     lfo.connect(ampDepth).connect(amp.gain);
     lfo.connect(cutoffDepth).connect(lp.frequency);
     oscs.push(lfo);
