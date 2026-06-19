@@ -59,6 +59,27 @@ export function buildNature(ctx, kind) {
     return { input, output: amp, oscs };
   }
 
+  if (kind === 'beach') {
+    // Gentle low waves lapping on sand: soft mid wash with a foam hiss that
+    // brightens and swells with each ~5.5s lap. Brighter, quicker and less
+    // rumbly than the open-ocean swell ('waves') — small waves make little
+    // low-frequency energy; the character is foam/bubbles over sand (>500 Hz).
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 240; hp.Q.value = 0.7;
+    const foam = ctx.createBiquadFilter(); foam.type = 'highshelf'; foam.frequency.value = 3200; foam.gain.value = 2;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4600; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.5;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.16; // ~6s lap
+    const ampDepth = ctx.createGain(); ampDepth.gain.value = 0.075;  // gentle, calm-day swell
+    const foamDepth = ctx.createGain(); foamDepth.gain.value = 3;    // subtle foam brightening on the uprush
+    const cutoffDepth = ctx.createGain(); cutoffDepth.gain.value = 280;
+    lfo.connect(ampDepth).connect(amp.gain);
+    lfo.connect(foamDepth).connect(foam.gain);
+    lfo.connect(cutoffDepth).connect(lp.frequency);
+    oscs.push(lfo);
+    input.connect(hp); hp.connect(foam); foam.connect(lp); lp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
   if (kind === 'wind') {
     // airy band-limited noise with a slowly sweeping resonance + gusty swells.
     // High-pass first to shed sub rumble so the swept band reads as "howl", not "boom".
