@@ -67,15 +67,8 @@ const COLORS = [
 
 const TEXTURE_GROUPS = [
   { label: 'Steady maskers',     items: [['fan', 'Fan / AC'], ['waterfall', 'Waterfall']] },
-  { label: 'Ambient',            items: [['rain', 'Rain'], ['waves', 'Ocean waves'], ['wind', 'Wind'], ['stream', 'Stream']] },
+  { label: 'Ambient',            items: [['rain', 'Rain'], ['waves', 'Ocean waves'], ['beach', 'Beach'], ['wind', 'Wind'], ['stream', 'Stream']] },
   { label: 'Crackle & droplets', items: [['campfire', 'Campfire'], ['tent', 'Rain on a tent']] },
-];
-
-const PRESETS = [
-  { name: 'Pink calm',     color: 'pink',  gain: 60, notchOn: false, master: 35, tone: 'Gentle all-rounder for focus or sleep' },
-  { name: 'Brown deep',    color: 'brown', gain: 55, notchOn: false, master: 35, tone: 'Low, soothing rumble' },
-  { name: 'White bright',  color: 'white', gain: 50, notchOn: false, master: 32, tone: 'Full-spectrum masking' },
-  { name: 'Notched (demo)',color: 'pink',  gain: 68, notchOn: true,  master: 38, notchHz: 4000, tone: 'Pink noise with a notch at your pitch' },
 ];
 
 // ─────────── Live spectrum visualiser (custom, AURUM-styled) ───────────
@@ -169,7 +162,7 @@ function App() {
   const applyProfile = (p) => {
     const l = p?.layers?.[0]; if (!l) return;
     if (l.color) setColor(l.color);
-    setNature(['rain', 'waves', 'wind', 'fan', 'waterfall', 'stream', 'campfire', 'tent'].includes(l.nature) ? l.nature : 'none');
+    setNature(['rain', 'waves', 'beach', 'wind', 'fan', 'waterfall', 'stream', 'campfire', 'tent'].includes(l.nature) ? l.nature : 'none');
     if (Number.isFinite(l.gain)) setGain(Math.round(l.gain * 100));
     if (l.notch) { setNotchOn(!!l.notch.enabled); if (l.notch.centerHz) setNotchHz(Math.round(l.notch.centerHz)); if (l.notch.octaves) setNotchOct(Math.round(l.notch.octaves * 100)); }
     if (Number.isFinite(p.master?.gain)) setMaster(Math.round(p.master.gain * 100));
@@ -216,15 +209,6 @@ function App() {
   const onGain = (v) => { setGain(v); engineRef.current?.setLayerGain(0, v / 100); };
   const onNotchHz = (v) => { setNotchHz(v); engineRef.current?.setNotch(0, { centerHz: v }); };
   const onNotchOct = (v) => { setNotchOct(v); engineRef.current?.setNotch(0, { octaves: v / 100 }); };
-
-  const applyPreset = (p) => {
-    setColor(p.color); setGain(p.gain); setNotchOn(p.notchOn); setMaster(p.master);
-    if (p.notchHz) setNotchHz(p.notchHz);
-    setTimeout(() => { if (engineRef.current?.playing) engineRef.current.play({
-      version:1, tinnitus:{}, layers:[{type:'noise', color:p.color, gain:p.gain/100,
-        notch:{enabled:p.notchOn, centerHz:p.notchHz||notchHz, octaves:notchOct/100}}],
-      master:{gain:p.master/100}, timer:{minutes:timerMin,fadeOutSec:30} }); }, 0);
-  };
 
   const exportWav = async (seconds) => {
     setRendering(true);
@@ -353,16 +337,6 @@ function App() {
               </div>
             ))}
             <Button variant="outline" size="sm" onClick={shareLink}>{copied ? '✓ Link copied' : '⤴ Copy share link'}</Button>
-          </div>
-
-          <div className="panel pad stack">
-            <div className="cap">Presets</div>
-            {PRESETS.map(p => (
-              <button key={p.name} className="chip" style={{ height: 'auto', padding: '10px 14px', textAlign: 'left', flexDirection: 'column', alignItems: 'flex-start', gap: 3 }} onClick={() => applyPreset(p)}>
-                <span style={{ fontWeight: 600 }}>{p.name}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.7, whiteSpace: 'normal' }}>{p.tone}</span>
-              </button>
-            ))}
           </div>
 
           <div className="panel pad stack">
