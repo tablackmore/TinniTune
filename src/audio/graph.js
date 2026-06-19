@@ -153,7 +153,7 @@ export function buildNature(ctx, kind) {
 // fine fast patter + occasional fat resonant drops on the fabric).
 const GRAIN_SPECS = {
   campfire: [
-    { rate: 9, decaySec: 0.05, amp: 0.95, band: 1500, q: 0.9, gain: 0.5 },
+    { rate: 0.3, decaySec: 0.06, amp: 1.0, band: 1500, q: 0.9, gain: 0.6 }, // ~1–2 distinct crackles / 5s
   ],
   tent: [
     { rate: 28, decaySec: 0.006, amp: 0.55, band: 2400, q: 1.1, gain: 0.30 }, // fine patter
@@ -169,9 +169,12 @@ const GRAIN_SPECS = {
 export function buildGrainOverlays(ctx, kind, seed) {
   const specs = GRAIN_SPECS[kind] || [];
   const sr = ctx.sampleRate;
-  const fadeSec = 0.04, lenSec = 14;
+  const fadeSec = 0.04;
 
   return specs.map((s, idx) => {
+    // Longer loop when events are rare, so a sparse pattern doesn't audibly repeat
+    // (aim for ~10 events per loop; clamp 14–40s).
+    const lenSec = Math.min(40, Math.max(14, 10 / Math.max(0.01, s.rate)));
     const raw = new Float32Array(Math.ceil((lenSec + fadeSec) * sr));
     fillGrains(raw, sr, { rate: s.rate, decaySec: s.decaySec, amp: s.amp, seed: seed + idx * 17 });
     const looped = crossfadeLoop(raw, sr, fadeSec);
