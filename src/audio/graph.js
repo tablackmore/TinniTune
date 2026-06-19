@@ -108,11 +108,12 @@ export function buildNature(ctx, kind) {
     // bright trickle with fast "bubbling" tremolo
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 600; hp.Q.value = 0.7;
     const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2600; peak.Q.value = 0.9; peak.gain.value = 4;
-    const amp = ctx.createGain(); amp.gain.value = 0.55;
-    const lfo1 = ctx.createOscillator(); lfo1.type = 'sine'; lfo1.frequency.value = 4.5;
-    const d1 = ctx.createGain(); d1.gain.value = 0.12;
-    const lfo2 = ctx.createOscillator(); lfo2.type = 'sine'; lfo2.frequency.value = 7.3;
-    const d2 = ctx.createGain(); d2.gain.value = 0.08;
+    const amp = ctx.createGain(); amp.gain.value = 0.62;
+    // subtle shimmer, not a wobble — shallow depth, gentler rates
+    const lfo1 = ctx.createOscillator(); lfo1.type = 'sine'; lfo1.frequency.value = 3.2;
+    const d1 = ctx.createGain(); d1.gain.value = 0.045;
+    const lfo2 = ctx.createOscillator(); lfo2.type = 'sine'; lfo2.frequency.value = 5.3;
+    const d2 = ctx.createGain(); d2.gain.value = 0.025;
     lfo1.connect(d1).connect(amp.gain); lfo2.connect(d2).connect(amp.gain); oscs.push(lfo1, lfo2);
     input.connect(hp); hp.connect(peak); peak.connect(amp);
     return { input, output: amp, oscs };
