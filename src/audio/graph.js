@@ -58,6 +58,27 @@ export function buildNature(ctx, kind) {
     return { input, output: amp, oscs };
   }
 
+  if (kind === 'wind') {
+    // airy band-limited noise with a slowly sweeping resonance + gusty swells.
+    // High-pass first to shed sub rumble so the swept band reads as "howl", not "boom".
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 200; hp.Q.value = 0.7;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = 1.4;
+    const amp = ctx.createGain(); amp.gain.value = 0.6;
+    // slow gust
+    const lfo1 = ctx.createOscillator(); lfo1.type = 'sine'; lfo1.frequency.value = 0.11;
+    const amp1 = ctx.createGain(); amp1.gain.value = 0.3;
+    const sweep = ctx.createGain(); sweep.gain.value = 260; // moves the howl 240–760 Hz
+    lfo1.connect(amp1).connect(amp.gain);
+    lfo1.connect(sweep).connect(bp.frequency);
+    // faster, shallower gust for irregularity
+    const lfo2 = ctx.createOscillator(); lfo2.type = 'sine'; lfo2.frequency.value = 0.29;
+    const amp2 = ctx.createGain(); amp2.gain.value = 0.13;
+    lfo2.connect(amp2).connect(amp.gain);
+    oscs.push(lfo1, lfo2);
+    input.connect(hp); hp.connect(bp); bp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
   return null; // no texture
 }
 
