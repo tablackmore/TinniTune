@@ -21,6 +21,47 @@ export function notchEdges(centerHz, octaves = 1.0) {
 }
 
 /**
+ * Build a "nature texture" shaping chain (rain / waves) from noise.
+ * Returns { input, output, oscs } — connect the noise source into `input`,
+ * route `output` onward, and start each oscillator in `oscs`.
+ *
+ * Works identically in live and offline contexts (no samples). LFO-driven
+ * amplitude (and, for waves, filter-cutoff) modulation creates the motion.
+ */
+export function buildNature(ctx, kind) {
+  const input = ctx.createGain();
+  const oscs = [];
+
+  if (kind === 'rain') {
+    // broadband hiss with a presence peak + gentle flutter
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 420; hp.Q.value = 0.7;
+    const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 4800; peak.Q.value = 0.8; peak.gain.value = 5;
+    const amp = ctx.createGain(); amp.gain.value = 0.9;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.7;
+    const depth = ctx.createGain(); depth.gain.value = 0.08;
+    lfo.connect(depth).connect(amp.gain); oscs.push(lfo);
+    input.connect(hp); hp.connect(peak); peak.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
+  if (kind === 'waves') {
+    // muffled low-mid roar that swells in and out (~11s), filter opening with the swell
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.55;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.09;
+    const ampDepth = ctx.createGain(); ampDepth.gain.value = 0.4;
+    const cutoffDepth = ctx.createGain(); cutoffDepth.gain.value = 550;
+    lfo.connect(ampDepth).connect(amp.gain);
+    lfo.connect(cutoffDepth).connect(lp.frequency);
+    oscs.push(lfo);
+    input.connect(lp); lp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
+  return null; // no texture
+}
+
+/**
  * Create a seamless, loopable noise AudioBuffer for a given color.
  * We generate slightly extra, crossfade the tail into the head, then
  * hand back a buffer whose loop point is inaudible.
@@ -89,7 +130,15 @@ export function buildGraph(ctx, profile, seed = 1337) {
     } else {
       return;
     }
-    source.connect(layerGain);
+    // Optional nature texture (rain / waves) shaping between source and layerGain.
+    const nature = layer.type === 'noise' ? buildNature(ctx, layer.nature) : null;
+    if (nature) {
+      source.connect(nature.input);
+      nature.output.connect(layerGain);
+      nature.oscs.forEach((o) => { starters.push((when) => o.start(when)); stoppers.push(() => { try { o.stop(); } catch {} }); });
+    } else {
+      source.connect(layerGain);
+    }
     starters.push((when) => source.start(when));
     stoppers.push(() => { try { source.stop(); } catch {} });
     layers.push({ gain: layerGain, bandLows, bandHighs, notchCenter: centerHz, notchOct: octaves });

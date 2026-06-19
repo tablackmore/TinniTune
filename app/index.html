@@ -137,6 +137,7 @@ function App() {
   const [notchOn, setNotchOn] = useState(false);
   const [notchHz, setNotchHz] = useState(4000);  // 200..12000
   const [notchOct, setNotchOct] = useState(100); // 50..200 → 0.5..2.0 octaves
+  const [nature, setNature] = useState('none'); // 'none' | 'rain' | 'waves'
   const [master, setMaster] = useState(35);
   const [playing, setPlaying] = useState(false);
   const [level, setLevel] = useState(0);
@@ -151,10 +152,10 @@ function App() {
 
   const profile = useCallback(() => ({
     version: 1, tinnitus: {},
-    layers: [{ type: 'noise', color, gain: gain / 100,
+    layers: [{ type: 'noise', color, gain: gain / 100, nature: nature === 'none' ? null : nature,
       notch: { enabled: notchOn, centerHz: notchHz, octaves: notchOct / 100 } }],
     master: { gain: master / 100 }, timer: { minutes: timerMin, fadeOutSec: 30 },
-  }), [color, gain, notchOn, notchHz, notchOct, master, timerMin]);
+  }), [color, gain, nature, notchOn, notchHz, notchOct, master, timerMin]);
 
   useEffect(() => { engineRef.current = new PeaceAudio.AudioEngine(); return () => engineRef.current?.dispose(); }, []);
 
@@ -162,6 +163,7 @@ function App() {
   const applyProfile = (p) => {
     const l = p?.layers?.[0]; if (!l) return;
     if (l.color) setColor(l.color);
+    setNature(l.nature === 'rain' || l.nature === 'waves' ? l.nature : 'none');
     if (Number.isFinite(l.gain)) setGain(Math.round(l.gain * 100));
     if (l.notch) { setNotchOn(!!l.notch.enabled); if (l.notch.centerHz) setNotchHz(Math.round(l.notch.centerHz)); if (l.notch.octaves) setNotchOct(Math.round(l.notch.octaves * 100)); }
     if (Number.isFinite(p.master?.gain)) setMaster(Math.round(p.master.gain * 100));
@@ -201,7 +203,7 @@ function App() {
   const toggle = () => (playing ? stop() : play());
 
   // structural changes → rebuild graph while playing
-  useEffect(() => { if (playing) engineRef.current.play(profile()); /* eslint-disable-next-line */ }, [color, notchOn]);
+  useEffect(() => { if (playing) engineRef.current.play(profile()); /* eslint-disable-next-line */ }, [color, notchOn, nature]);
 
   // live changes
   const onMaster = (v) => { setMaster(v); engineRef.current?.setMasterGain(v / 100); };
@@ -268,6 +270,18 @@ function App() {
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, opacity: 0.7 }}>{c.note}</span>
               </button>
             ))}
+          </div>
+
+          <div className="between" style={{ marginTop: 4 }}>
+            <span className="cap">Texture</span>
+            <select value={nature} onChange={(e) => setNature(e.target.value)}
+              style={{ height: 36, padding: '0 10px', borderRadius: 'var(--radius-md)', border: 'none',
+                background: 'var(--surface-well)', color: 'var(--text-primary)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.7)',
+                fontFamily: 'var(--font-display)', fontSize: 13, cursor: 'pointer' }}>
+              <option value="none">None (plain noise)</option>
+              <option value="rain">Rain</option>
+              <option value="waves">Ocean waves</option>
+            </select>
           </div>
 
           <div className="between" style={{ marginTop: 4 }}>
