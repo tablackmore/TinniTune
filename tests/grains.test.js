@@ -36,6 +36,17 @@ test('an empty rate produces silence', () => {
   assert.equal(energy(buf), 0);
 });
 
+test('minGapSec enforces a minimum spacing between events', () => {
+  const sr = 44100;
+  const buf = new Float32Array(sr * 5); // 5 seconds
+  fillGrains(buf, sr, { rate: 50, decaySec: 0.02, minGapSec: 0.5, seed: 3 }); // would be ~250 events without the gap
+  // count onsets: a non-silent sample preceded by >=0.2s of silence
+  let onsets = 0, silent = 1e9; const minSil = 0.2 * sr;
+  for (const v of buf) { if (Math.abs(v) > 0.01) { if (silent >= minSil) onsets++; silent = 0; } else silent++; }
+  assert.ok(onsets <= 11, `min 0.5s gap over 5s ⇒ ≤ ~10 events, got ${onsets}`);
+  assert.ok(onsets >= 6, `should still fire regularly, got ${onsets}`);
+});
+
 test('attackSec changes the burst shape (soft-onset wash, not a click)', () => {
   const click = new Float32Array(44100); fillGrains(click, 44100, { rate: 5, decaySec: 0.3, attackSec: 0, seed: 9 });
   const wash = new Float32Array(44100); fillGrains(wash, 44100, { rate: 5, decaySec: 0.3, attackSec: 0.25, seed: 9 });

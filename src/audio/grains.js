@@ -15,18 +15,22 @@ import { mulberry32 } from './noise.js';
  *   rate      — average bursts per second
  *   decaySec  — exponential decay time constant of each burst
  *   attackSec — soft fade-in before the decay (0 = instant click; >0 = "wash")
+ *   minGapSec — refractory period: no two events start closer than this (0 = off)
  *   amp       — peak amplitude (randomly varied per burst)
  */
-export function fillGrains(buf, sampleRate, { rate = 8, decaySec = 0.04, attackSec = 0, seed = 1, amp = 0.85 } = {}) {
+export function fillGrains(buf, sampleRate, { rate = 8, decaySec = 0.04, attackSec = 0, minGapSec = 0, seed = 1, amp = 0.85 } = {}) {
   buf.fill(0);
   if (rate <= 0) return buf;
   const rng = mulberry32(seed);
   const p = rate / sampleRate;                 // per-sample probability of a new burst
   const tau = Math.max(1, decaySec * sampleRate);
   const atk = Math.max(0, attackSec * sampleRate);
+  const minGap = Math.max(0, Math.floor(minGapSec * sampleRate));
   const burstLen = Math.ceil(atk + tau * 6);   // attack + decay out to ~e^-6 (inaudible)
 
+  let cooldown = 0;                            // samples until another event may start
   for (let i = 0; i < buf.length; i++) {
+    if (cooldown > 0) { cooldown--; continue; } // refractory: enforce minimum spacing
     if (rng() < p) {
       const a = amp * (0.4 + 0.6 * rng());      // vary loudness per burst
       const end = Math.min(buf.length, i + burstLen);
@@ -38,6 +42,7 @@ export function fillGrains(buf, sampleRate, { rate = 8, decaySec = 0.04, attackS
           : Math.exp(-(t - atk) / tau);
         buf[j] += (rng() * 2 - 1) * a * env;
       }
+      cooldown = minGap;
     }
   }
   for (let i = 0; i < buf.length; i++) {

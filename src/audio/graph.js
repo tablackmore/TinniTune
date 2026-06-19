@@ -166,7 +166,7 @@ export function buildNature(ctx, kind) {
 // fine fast patter + occasional fat resonant drops on the fabric).
 const GRAIN_SPECS = {
   campfire: [
-    { rate: 0.06, decaySec: 0.06, amp: 1.0, band: 1500, q: 0.9, gain: 0.03 }, // very sparse (~1/16s), barely-there
+    { rate: 0.06, decaySec: 0.06, amp: 1.0, band: 1500, q: 0.9, gain: 0.05 }, // very sparse (~1/16s), soft but audible
   ],
   tent: [
     { rate: 28, decaySec: 0.006, amp: 0.55, band: 2400, q: 1.1, gain: 0.30 }, // fine patter
@@ -174,7 +174,7 @@ const GRAIN_SPECS = {
   ],
   beach: [
     // discrete gentle wash events (~every 5.5s): soft rise, longer recede — the "lap"
-    { rate: 0.11, attackSec: 0.45, decaySec: 0.9, amp: 1.0, band: 1700, q: 0.5, gain: 0.7 }, // ~9s between laps, leisurely
+    { rate: 0.11, attackSec: 0.45, decaySec: 0.9, minGapSec: 4, amp: 1.0, band: 1700, q: 0.5, gain: 0.6 }, // ~9s avg, never <4s, gentler peak
   ],
 };
 
@@ -193,7 +193,7 @@ export function buildGrainOverlays(ctx, kind, seed) {
     // (aim for ~10 events per loop; clamp 14–40s).
     const lenSec = Math.min(60, Math.max(14, 10 / Math.max(0.01, s.rate)));
     const raw = new Float32Array(Math.ceil((lenSec + fadeSec) * sr));
-    fillGrains(raw, sr, { rate: s.rate, decaySec: s.decaySec, attackSec: s.attackSec || 0, amp: s.amp, seed: seed + idx * 17 });
+    fillGrains(raw, sr, { rate: s.rate, decaySec: s.decaySec, attackSec: s.attackSec || 0, minGapSec: s.minGapSec || 0, amp: s.amp, seed: seed + idx * 17 });
     const looped = crossfadeLoop(raw, sr, fadeSec);
     const buffer = ctx.createBuffer(1, looped.length, sr);
     buffer.copyToChannel(looped, 0);
