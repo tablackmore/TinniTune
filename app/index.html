@@ -65,6 +65,12 @@ const COLORS = [
   { id: 'brown', label: 'Brown', note: 'deep, rumbly' },
 ];
 
+const TEXTURE_GROUPS = [
+  { label: 'Steady maskers',     items: [['fan', 'Fan / AC'], ['waterfall', 'Waterfall']] },
+  { label: 'Ambient',            items: [['rain', 'Rain'], ['waves', 'Ocean waves'], ['wind', 'Wind'], ['stream', 'Stream']] },
+  { label: 'Crackle & droplets', items: [['campfire', 'Campfire'], ['tent', 'Rain on a tent']] },
+];
+
 const PRESETS = [
   { name: 'Pink calm',     color: 'pink',  gain: 60, notchOn: false, master: 35, tone: 'Gentle all-rounder for focus or sleep' },
   { name: 'Brown deep',    color: 'brown', gain: 55, notchOn: false, master: 35, tone: 'Low, soothing rumble' },
@@ -272,28 +278,23 @@ function App() {
             ))}
           </div>
 
-          <div className="between" style={{ marginTop: 4 }}>
-            <span className="cap">Texture</span>
-            <select value={nature} onChange={(e) => setNature(e.target.value)}
-              style={{ height: 36, padding: '0 10px', borderRadius: 'var(--radius-md)', border: 'none',
-                background: 'var(--surface-well)', color: 'var(--text-primary)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.7)',
-                fontFamily: 'var(--font-display)', fontSize: 13, cursor: 'pointer' }}>
-              <option value="none">None (plain noise)</option>
-              <optgroup label="Steady maskers">
-                <option value="fan">Fan / AC</option>
-                <option value="waterfall">Waterfall</option>
-              </optgroup>
-              <optgroup label="Ambient">
-                <option value="rain">Rain</option>
-                <option value="waves">Ocean waves</option>
-                <option value="wind">Wind</option>
-                <option value="stream">Stream</option>
-              </optgroup>
-              <optgroup label="Crackle &amp; droplets">
-                <option value="campfire">Campfire</option>
-                <option value="tent">Rain on a tent</option>
-              </optgroup>
-            </select>
+          <div style={{ marginTop: 4 }}>
+            <div className="cap" style={{ marginBottom: 8 }}>Texture</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              <button className="chip" aria-pressed={nature === 'none'} onClick={() => setNature('none')}
+                style={{ height: 34, padding: '0 14px', fontSize: 12 }}>None</button>
+            </div>
+            {TEXTURE_GROUPS.map(grp => (
+              <div key={grp.label} style={{ marginBottom: 10 }}>
+                <div className="cap" style={{ fontSize: 9, opacity: 0.7, marginBottom: 6 }}>{grp.label}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {grp.items.map(([id, lbl]) => (
+                    <button key={id} className="chip" aria-pressed={nature === id} onClick={() => setNature(id)}
+                      style={{ height: 34, padding: '0 12px', fontSize: 12 }}>{lbl}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="between" style={{ marginTop: 4 }}>
