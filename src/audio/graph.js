@@ -6,6 +6,7 @@
 // ============================================================
 
 import { fillNoise, mulberry32 } from './noise.js';
+import { fillGrains } from './grains.js';
 import { crossfadeLoop } from './loop.js';
 import { clampMasterGain } from './profile.js';
 
@@ -79,7 +80,95 @@ export function buildNature(ctx, kind) {
     return { input, output: amp, oscs };
   }
 
+  if (kind === 'fan') {
+    // steady low-mid airflow with a touch of motor hum — a plain, strong masker
+    const hum = ctx.createBiquadFilter(); hum.type = 'peaking'; hum.frequency.value = 180; hum.Q.value = 1.2; hum.gain.value = 4;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.7;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.4;
+    const depth = ctx.createGain(); depth.gain.value = 0.03; // barely-there liveliness
+    lfo.connect(depth).connect(amp.gain); oscs.push(lfo);
+    input.connect(hum); hum.connect(lp); lp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
+  if (kind === 'waterfall') {
+    // full, immersive broadband with body — steady
+    const ls = ctx.createBiquadFilter(); ls.type = 'lowshelf'; ls.frequency.value = 220; ls.gain.value = 3;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 9000; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.7;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.35;
+    const depth = ctx.createGain(); depth.gain.value = 0.04;
+    lfo.connect(depth).connect(amp.gain); oscs.push(lfo);
+    input.connect(ls); ls.connect(lp); lp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
+  if (kind === 'stream') {
+    // bright trickle with fast "bubbling" tremolo
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 600; hp.Q.value = 0.7;
+    const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2600; peak.Q.value = 0.9; peak.gain.value = 4;
+    const amp = ctx.createGain(); amp.gain.value = 0.55;
+    const lfo1 = ctx.createOscillator(); lfo1.type = 'sine'; lfo1.frequency.value = 4.5;
+    const d1 = ctx.createGain(); d1.gain.value = 0.12;
+    const lfo2 = ctx.createOscillator(); lfo2.type = 'sine'; lfo2.frequency.value = 7.3;
+    const d2 = ctx.createGain(); d2.gain.value = 0.08;
+    lfo1.connect(d1).connect(amp.gain); lfo2.connect(d2).connect(amp.gain); oscs.push(lfo1, lfo2);
+    input.connect(hp); hp.connect(peak); peak.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
+  if (kind === 'campfire') {
+    // low roar bed (crackle is added separately as a grain overlay) with a slow flicker
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.55;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.3;
+    const depth = ctx.createGain(); depth.gain.value = 0.12;
+    lfo.connect(depth).connect(amp.gain); oscs.push(lfo);
+    input.connect(lp); lp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
+  if (kind === 'tent') {
+    // muffled "indoors" rain bed (droplet ticks added as a grain overlay)
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 400; hp.Q.value = 0.7;
+    const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 4200; peak.Q.value = 0.8; peak.gain.value = 3;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.7;
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.6;
+    const depth = ctx.createGain(); depth.gain.value = 0.07;
+    lfo.connect(depth).connect(amp.gain); oscs.push(lfo);
+    input.connect(hp); hp.connect(peak); peak.connect(lp); lp.connect(amp);
+    return { input, output: amp, oscs };
+  }
+
   return null; // no texture
+}
+
+/**
+ * Grain overlay (crackle / droplets) for textures that need sparse transients.
+ * Returns { output, source } or null. Bandpass-shapes a looped grain buffer.
+ */
+export function buildGrainOverlay(ctx, kind, seed) {
+  if (kind !== 'campfire' && kind !== 'tent') return null;
+  const sr = ctx.sampleRate;
+  const fadeSec = 0.04, lenSec = 14;
+  const raw = new Float32Array(Math.ceil((lenSec + fadeSec) * sr));
+  const params = kind === 'campfire'
+    ? { rate: 9, decaySec: 0.05, amp: 0.95 }
+    : { rate: 17, decaySec: 0.012, amp: 0.8 };
+  fillGrains(raw, sr, { ...params, seed });
+  const looped = crossfadeLoop(raw, sr, fadeSec);
+  const buffer = ctx.createBuffer(1, looped.length, sr);
+  buffer.copyToChannel(looped, 0);
+
+  const source = ctx.createBufferSource(); source.buffer = buffer; source.loop = true;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
+  const g = ctx.createGain();
+  if (kind === 'campfire') { bp.frequency.value = 1500; bp.Q.value = 0.9; g.gain.value = 0.5; }
+  else { bp.frequency.value = 3800; bp.Q.value = 1.3; g.gain.value = 0.5; }
+  source.connect(bp); bp.connect(g);
+  return { output: g, source };
 }
 
 /**
@@ -151,7 +240,7 @@ export function buildGraph(ctx, profile, seed = 1337) {
     } else {
       return;
     }
-    // Optional nature texture (rain / waves) shaping between source and layerGain.
+    // Optional nature texture shaping between source and layerGain.
     const nature = layer.type === 'noise' ? buildNature(ctx, layer.nature) : null;
     if (nature) {
       source.connect(nature.input);
@@ -162,6 +251,14 @@ export function buildGraph(ctx, profile, seed = 1337) {
     }
     starters.push((when) => source.start(when));
     stoppers.push(() => { try { source.stop(); } catch {} });
+
+    // Optional sparse-transient overlay (campfire crackle / tent droplets).
+    const grain = layer.type === 'noise' ? buildGrainOverlay(ctx, layer.nature, seed + i + 101) : null;
+    if (grain) {
+      grain.output.connect(layerGain);
+      starters.push((when) => grain.source.start(when));
+      stoppers.push(() => { try { grain.source.stop(); } catch {} });
+    }
     layers.push({ gain: layerGain, bandLows, bandHighs, notchCenter: centerHz, notchOct: octaves });
   });
 
