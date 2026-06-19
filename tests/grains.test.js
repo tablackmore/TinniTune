@@ -35,3 +35,13 @@ test('an empty rate produces silence', () => {
   const buf = new Float32Array(4410); fillGrains(buf, 44100, { rate: 0, seed: 1 });
   assert.equal(energy(buf), 0);
 });
+
+test('attackSec changes the burst shape (soft-onset wash, not a click)', () => {
+  const click = new Float32Array(44100); fillGrains(click, 44100, { rate: 5, decaySec: 0.3, attackSec: 0, seed: 9 });
+  const wash = new Float32Array(44100); fillGrains(wash, 44100, { rate: 5, decaySec: 0.3, attackSec: 0.25, seed: 9 });
+  // same seed → same event times, but attack reshapes the envelope, so signals differ
+  assert.notDeepEqual(wash, click);
+  // still well-formed
+  for (const v of wash) assert.ok(v >= -1 && v <= 1);
+  assert.ok(energy(wash) > 0);
+});

@@ -60,22 +60,16 @@ export function buildNature(ctx, kind) {
   }
 
   if (kind === 'beach') {
-    // Gentle low waves lapping on sand: soft mid wash with a foam hiss that
-    // brightens and swells with each ~5.5s lap. Brighter, quicker and less
-    // rumbly than the open-ocean swell ('waves') — small waves make little
-    // low-frequency energy; the character is foam/bubbles over sand (>500 Hz).
-    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 240; hp.Q.value = 0.7;
-    const foam = ctx.createBiquadFilter(); foam.type = 'highshelf'; foam.frequency.value = 3200; foam.gain.value = 2;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4600; lp.Q.value = 0.7;
-    const amp = ctx.createGain(); amp.gain.value = 0.5;
-    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.16; // ~6s lap
-    const ampDepth = ctx.createGain(); ampDepth.gain.value = 0.075;  // gentle, calm-day swell
-    const foamDepth = ctx.createGain(); foamDepth.gain.value = 3;    // subtle foam brightening on the uprush
-    const cutoffDepth = ctx.createGain(); cutoffDepth.gain.value = 280;
-    lfo.connect(ampDepth).connect(amp.gain);
-    lfo.connect(foamDepth).connect(foam.gain);
-    lfo.connect(cutoffDepth).connect(lp.frequency);
-    oscs.push(lfo);
+    // Quiet, near-constant sea/foam ambience BED. The actual lapping rhythm comes
+    // from discrete wash events in the grain overlay (GRAIN_SPECS.beach), so this
+    // bed is deliberately soft and steady — it just fills the gaps between laps.
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 300; hp.Q.value = 0.7;
+    const foam = ctx.createBiquadFilter(); foam.type = 'highshelf'; foam.frequency.value = 3200; foam.gain.value = 3;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4800; lp.Q.value = 0.7;
+    const amp = ctx.createGain(); amp.gain.value = 0.3;             // quiet under the laps
+    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.05;
+    const depth = ctx.createGain(); depth.gain.value = 0.03;        // barely-there drift
+    lfo.connect(depth).connect(amp.gain); oscs.push(lfo);
     input.connect(hp); hp.connect(foam); foam.connect(lp); lp.connect(amp);
     return { input, output: amp, oscs };
   }
@@ -178,6 +172,10 @@ const GRAIN_SPECS = {
     { rate: 28, decaySec: 0.006, amp: 0.55, band: 2400, q: 1.1, gain: 0.30 }, // fine patter
     { rate: 6,  decaySec: 0.03,  amp: 0.95, band: 1150, q: 3.4, gain: 0.5 },  // fat resonant drops
   ],
+  beach: [
+    // discrete gentle wash events (~every 5.5s): soft rise, longer recede — the "lap"
+    { rate: 0.18, attackSec: 0.35, decaySec: 0.7, amp: 1.0, band: 1700, q: 0.5, gain: 0.7 },
+  ],
 };
 
 /**
@@ -195,7 +193,7 @@ export function buildGrainOverlays(ctx, kind, seed) {
     // (aim for ~10 events per loop; clamp 14–40s).
     const lenSec = Math.min(60, Math.max(14, 10 / Math.max(0.01, s.rate)));
     const raw = new Float32Array(Math.ceil((lenSec + fadeSec) * sr));
-    fillGrains(raw, sr, { rate: s.rate, decaySec: s.decaySec, amp: s.amp, seed: seed + idx * 17 });
+    fillGrains(raw, sr, { rate: s.rate, decaySec: s.decaySec, attackSec: s.attackSec || 0, amp: s.amp, seed: seed + idx * 17 });
     const looped = crossfadeLoop(raw, sr, fadeSec);
     const buffer = ctx.createBuffer(1, looped.length, sr);
     buffer.copyToChannel(looped, 0);
