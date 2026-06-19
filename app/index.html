@@ -246,7 +246,10 @@ function App() {
             <div className="cap" style={{ marginTop: 2 }}>Tinnitus Sound Studio</div>
           </div>
         </div>
-        <Badge tone={playing ? 'success' : 'neutral'} dot={playing}>{playing ? 'Playing' : 'Idle'}</Badge>
+        <div className="row" style={{ gap: 14 }}>
+          <a href="./identify.html" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', color: 'var(--text-muted)', textDecoration: 'none' }}>Identify your tinnitus →</a>
+          <Badge tone={playing ? 'success' : 'neutral'} dot={playing}>{playing ? 'Playing' : 'Idle'}</Badge>
+        </div>
       </div>
 
       <div className="grid">
